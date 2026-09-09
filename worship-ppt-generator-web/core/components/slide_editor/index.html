@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #18181b;
+    overflow: hidden;
+    font-family: 'Consolas', 'Courier New', monospace;
+  }
+  .editor-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    background: #18181b;
+    border: 1px solid #3f3f46;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .gutter {
+    width: 58px;
+    min-width: 58px;
+    max-width: 58px;
+    height: 100%;
+    background: #202024;
+    border-right: 1px solid #3f3f46;
+    color: #71717a;
+    text-align: right;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-right: 8px;
+    padding-left: 4px;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+  }
+  .gutter-line {
+    height: 24px;
+    line-height: 24px;
+    font-size: 14px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    white-space: pre;
+  }
+  .gutter-num {
+    color: #38bdf8;
+    font-weight: 700;
+  }
+  .gutter-bar {
+    color: #52525b;
+    font-weight: normal;
+    margin-left: 4px;
+  }
+  .editor-textarea {
+    flex: 1;
+    height: 100%;
+    background: #18181b;
+    color: #f4f4f5;
+    border: none;
+    outline: none;
+    padding: 12px 14px;
+    resize: none;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 24px;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+  }
+  .editor-textarea::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .editor-textarea::-webkit-scrollbar-track {
+    background: #18181b;
+  }
+  .editor-textarea::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 5px;
+  }
+  .editor-textarea::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
+</style>
+</head>
+<body>
+  <div class="editor-wrapper">
+    <div class="gutter" id="gutter"></div>
+    <textarea class="editor-textarea" id="editor" spellcheck="false" placeholder="1단계에서 콘티를 작성하고 [PPT 기획안 생성] 버튼을 누르면 이곳에 전체 슬라이드 기획안이 생성됩니다.&#10;&#10;빈 줄(더블 엔터)로 슬라이드를 자유롭게 분할하거나 추가/삭제할 수 있습니다."></textarea>
+  </div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const gutter = document.getElementById('gutter');
+    let debounceTimer = null;
+    let typingTimer = null;
+    let isUserTyping = false;
+    let lastSentValue = null;
+
+    function sendToStreamlit(type, data) {
+      window.parent.postMessage(Object.assign({
+        isStreamlitMessage: true,
+        type: type
+      }, data), "*");
+    }
+
+    function updateGutter() {
+      const text = editor.value || '';
+      if (!text.trim()) {
+        gutter.innerHTML = '<div class="gutter-line"><span class="gutter-num">1</span><span class="gutter-bar"> |</span></div>';
+        gutter.scrollTop = editor.scrollTop;
+        return;
+      }
+      const lines = text.replace(/\r/g, '').split('\n');
+      let slideIndex = 0;
+      let inSlide = false;
+      let html = '';
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.length > 0) {
+          if (!inSlide) {
+            slideIndex++;
+            inSlide = true;
+            html += '<div class="gutter-line"><span class="gutter-num">' + slideIndex + '</span><span class="gutter-bar"> |</span></div>';
+          } else {
+            html += '<div class="gutter-line"><span class="gutter-bar">   |</span></div>';
+          }
+        } else {
+          inSlide = false;
+          html += '<div class="gutter-line"><span class="gutter-bar">   |</span></div>';
+        }
+      }
+      gutter.innerHTML = html;
+      gutter.scrollTop = editor.scrollTop;
+    }
+
+    function notifyValueChange() {
+      if (lastSentValue === editor.value) return;
+      lastSentValue = editor.value;
+      sendToStreamlit("streamlit:setComponentValue", { value: editor.value });
+    }
+
+    editor.addEventListener('input', () => {
+      isUserTyping = true;
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => { isUserTyping = false; }, 800);
+
+      updateGutter();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(notifyValueChange, 250);
+    });
+
+    editor.addEventListener('blur', () => {
+      clearTimeout(debounceTimer);
+      isUserTyping = false;
+      notifyValueChange();
+    });
+
+    editor.addEventListener('scroll', () => {
+      gutter.scrollTop = editor.scrollTop;
+    });
+
+    gutter.addEventListener('wheel', (e) => {
+      editor.scrollTop += e.deltaY;
+      gutter.scrollTop = editor.scrollTop;
+      e.preventDefault();
+    }, { passive: false });
+
+    gutter.addEventListener('click', () => {
+      editor.focus();
+    });
+
+    window.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "streamlit:render") {
+        if (readyInterval) clearInterval(readyInterval);
+        const args = event.data.args;
+        if (args && args.value !== undefined) {
+          // 1. Initial mount
+          if (!window.__initialized) {
+            window.__initialized = true;
+            lastSentValue = args.value;
+            editor.value = args.value;
+            updateGutter();
+          }
+          // 2. Ignore echo of our own edits
+          else if (args.value === lastSentValue || args.value === editor.value) {
+            // In sync, do nothing
+          }
+          // 3. User actively typing or focused: never overwrite to prevent cursor jump & deletion
+          else if (isUserTyping || document.activeElement === editor) {
+            // Keep user input intact
+          }
+          // 4. External update (e.g. generated from Tab 1 or preset reset)
+          else {
+            lastSentValue = args.value;
+            const selStart = editor.selectionStart;
+            const selEnd = editor.selectionEnd;
+            editor.value = args.value;
+            if (selStart !== undefined && selEnd !== undefined && selEnd <= editor.value.length) {
+              editor.setSelectionRange(selStart, selEnd);
+            }
+            updateGutter();
+          }
+        }
+        if (args && args.height) {
+          sendToStreamlit("streamlit:setFrameHeight", { height: args.height });
+        }
+      }
+    });
+
+    // 100ms 간격으로 Streamlit의 응답이 올 때까지 componentReady를 반복 발송 (Race Condition 원천 차단)
+    let readyAttempts = 0;
+    const readyInterval = setInterval(() => {
+      if (window.__initialized || readyAttempts >= 30) {
+        clearInterval(readyInterval);
+      } else {
+        sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+        sendToStreamlit("streamlit:setFrameHeight", { height: 580 });
+        readyAttempts++;
+      }
+    }, 100);
+
+    sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+    sendToStreamlit("streamlit:setFrameHeight", { height: 580 });
+
+    updateGutter();
+    window.addEventListener("DOMContentLoaded", updateGutter);
+    window.addEventListener("load", updateGutter);
+  </script>
+</body>
+</html>
