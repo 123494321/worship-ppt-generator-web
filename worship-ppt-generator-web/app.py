@@ -1,5 +1,6 @@
 import streamlit as st
 import io
+import sys
 import os
 import re
 import json
@@ -7,9 +8,7 @@ import time
 import shutil
 import subprocess
 from datetime import datetime
-import shutil
-import subprocess
-from datetime import datetime
+
 
 def get_user_desktop_path():
     """사용자의 Windows 바탕화면 경로를 감지합니다."""
@@ -970,12 +969,8 @@ elif active_tab == "3. 클라우드 보관소":
                                         key=f"dl_local_{fname}",
                                         use_container_width=True
                                     )
-                            if sys.platform == "win32":
-                                if st.button("📂 폴더 열기", key=f"open_dir_{fname}", use_container_width=True, help="파일이 저장된 2_찬양_PPT 폴더를 엽니다."):
-                                    ok = open_folder_in_explorer(DIR_PPTX)
-                                    if not ok:
-                                        st.error("탐색기 실행에 실패했습니다.")
                         else:
+
                             file_id = it.get("file_id")
                             if file_id:
                                 if st.button(f"📥 클라우드에서 PC로 내려받기", key=f"dl_cloud_{fname}", use_container_width=True, type="primary"):
@@ -1027,11 +1022,8 @@ elif active_tab == "3. 클라우드 보관소":
                     with c_sact:
                         if is_local:
                             st.markdown("<div style='color:#15803d; font-weight:700; font-size:0.85rem; margin-bottom:6px;'>✅ 내 PC 라이브러리에 보유 중</div>", unsafe_allow_html=True)
-                            if st.button("📂 곡 폴더 열기", key=f"open_sdir_{fname}", use_container_width=True, help="곡 JSON 파일이 있는 폴더를 엽니다."):
-                                ok = open_folder_in_explorer(local_dir)
-                                if not ok:
-                                    st.error("탐색기 실행 실패")
                         else:
+
                             file_id = it.get("file_id")
                             if file_id:
                                 if st.button("📥 클라우드에서 PC로 내려받기", key=f"dl_song_{fname}", use_container_width=True, type="primary"):
