@@ -338,7 +338,7 @@ else:
         except Exception:
             pass
 
-cloud_badge = "🟢 텔레그램 클라우드 연동됨" if st.session_state.get("cloud_connected", True) else "⚪ 오프라인 모드"
+cloud_badge = "🟢 클라우드 연결됨" if st.session_state.get("cloud_connected", True) else "⚪ 오프라인 모드"
 badge_bg = "rgba(16, 185, 129, 0.25)" if st.session_state.get("cloud_connected", True) else "rgba(148, 163, 184, 0.25)"
 badge_border = "#10b981" if st.session_state.get("cloud_connected", True) else "#94a3b8"
 
@@ -347,7 +347,7 @@ st.markdown(f"""
 <div class="main-title-container">
     <div>
         <div class="main-title">🎵 LOGOS 찬양 PPT 제작 스튜디오</div>
-        <div class="main-subtitle">1. 콘티 작성 ➔ 2. 기획안 검토 ➔ 3. PPT 제작 & 클라우드 보관소</div>
+        <div class="main-subtitle">1. 콘티 작성 ➔ 2. 슬라이드 편집 ➔ 3. 자료실</div>
     </div>
     <div style="display: flex; align-items: center; gap: 10px;">
         <span style="background: {badge_bg}; border: 1px solid {badge_border}; padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 700; color: white;">
@@ -362,12 +362,12 @@ st.markdown(f"""
 
 # Sidebar: Global Settings & File Handlers
 with st.sidebar:
-    st.header("📁 기준 PPT 설정 [필수]")
-    st.caption("텍스트 위치, 배율, 폰트 임베딩의 기준이 되는 원본 PPT입니다.")
+    st.header("📁 표준 양식 설정")
+    st.caption("텍스트 위치, 배율, 폰트 임베딩의 기준이 되는 원본 PPT 서식입니다.")
     
     template_mode = st.radio(
-        "기준 PPT 지정 방식",
-        ["내 PC에서 직접 업로드", "교회 표준 프리셋 선택"],
+        "표준 양식 지정 방식",
+        ["교회 표준 양식 선택", "내 PC에서 직접 업로드"],
         index=0
     )
     
@@ -375,26 +375,32 @@ with st.sidebar:
     active_template_name = None
     preset_info_dict = get_preset_info_dict()
     
-    if template_mode == "교회 표준 프리셋 선택":
+    if template_mode == "교회 표준 양식 선택":
         preset_names = list(preset_info_dict.keys())
         if preset_names:
+            default_preset_idx = 0
+            for p_idx, p_name in enumerate(preset_names):
+                if "청년부" in p_name:
+                    default_preset_idx = p_idx
+                    break
             selected_preset = st.radio(
-                "표준 프리셋 선택",
+                "표준 양식 선택",
                 preset_names,
-                index=0,
-                help="프로젝트에 등록된 교회 표준 찬양 PPT 목록입니다."
+                index=default_preset_idx,
+                help="프로젝트에 등록된 교회 표준 찬양 PPT 양식 목록입니다."
             )
             active_template_source = preset_info_dict[selected_preset]["template_path"]
             active_template_name = selected_preset
             st.caption(f"📌 적용 중: **{selected_preset}**")
             
-            # 프리셋 변경 시 해당 프리셋 맞춤 기본 콘티 서식 자동 삽입
+            # 양식 변경 시 해당 양식 맞춤 기본 콘티 서식 자동 삽입
             if st.session_state.get("active_preset_name") != selected_preset:
                 st.session_state.active_preset_name = selected_preset
                 new_template = get_default_conti_template(selected_preset)
                 st.session_state.conti_text = new_template
                 st.session_state.conti_editor = new_template
                 st.rerun()
+
         else:
             st.info("💡 아직 등록된 공식 프리셋이 없습니다.\n\n텔레그램 채널에 일반 텍스트로 `#추가 : [프리셋 이름]`을 전송하여 프리셋을 생성해 보세요.\n\n(또는 '내 PC에서 직접 업로드'를 이용하세요)")
     else:
@@ -417,8 +423,8 @@ with st.sidebar:
     active_cover_source = None
     active_cover_name = "미적용 (기본 텍스트 표지)"
     
-    # 분기 1: 교회 표준 프리셋 모드
-    if template_mode == "교회 표준 프리셋 선택" and active_template_name:
+    # 분기 1: 교회 표준 양식 모드
+    if template_mode == "교회 표준 양식 선택" and active_template_name:
         preset_info = preset_info_dict.get(active_template_name, {})
         detected_cover_path = preset_info.get("cover_path")
         detected_cover_name = preset_info.get("cover_name")
@@ -559,8 +565,8 @@ with st.sidebar:
         st.session_state.last_uploaded_file_key = None
 
     st.divider()
-    st.header("📚 찬양 라이브러리 (아카이브)")
-    st.caption("자주 부르는 찬양을 검색하여 기존 곡 자리에 교체하거나 끝에 추가할 수 있습니다.")
+    st.header("🎵 등록된 찬양곡 검색")
+    st.caption("자주 부르는 찬양을 검색하여 기존 곡 자리에 바꾸거나 끝에 추가할 수 있습니다.")
     lib_search = st.text_input("찬양 검색", placeholder="예: 꽃들도, 새 힘...", label_visibility="collapsed")
     matched_songs = search_library_with_version_limit(lib_search, max_versions=3)
     if matched_songs:
@@ -576,20 +582,20 @@ with st.sidebar:
                     if v['routine']:
                         st.caption(f"루틴: {v['routine']}")
                     
-                    # 기존 곡 자리에 교체 버튼들
+                    # 기존 곡 자리에 바꾸기 버튼들
                     if cur_songs:
-                        st.caption("🔄 기존 곡 자리에 교체:")
+                        st.caption("🔄 기존 곡 바꾸기:")
                         cols_rep = st.columns(min(len(cur_songs), 3))
                         for idx, s in enumerate(cur_songs):
                             target_num = idx + 1
                             col_t = cols_rep[idx % len(cols_rep)]
-                            if col_t.button(f"{target_num}번 교체", key=f"btn_rep_side_{s_title}_{v['date']}_{target_num}", help=f"{target_num}번 곡({s.get('title')}) 자리에 교체", use_container_width=True):
+                            if col_t.button(f"🔄 {target_num}번 곡 바꾸기", key=f"btn_rep_side_{s_title}_{v['date']}_{target_num}", help=f"{target_num}번 곡({s.get('title')}) 자리에 바꾸기", use_container_width=True):
                                 new_c = replace_song_in_conti(current_c, target_num, v['data'])
                                 st.session_state.pending_conti_update = new_c
                                 st.rerun()
                                 
                     next_num = len(cur_songs) + 1
-                    if st.button(f"➕ 콘티 끝에 추가 ({next_num}번)", key=f"btn_add_lib_{s_title}_{v['date']}", use_container_width=True):
+                    if st.button(f"➕ 순서 끝에 추가 ({next_num}번)", key=f"btn_add_lib_{s_title}_{v['date']}", use_container_width=True):
                         new_c = append_song_to_conti(current_c, v['data'])
                         st.session_state.pending_conti_update = new_c
                         st.rerun()
@@ -597,7 +603,7 @@ with st.sidebar:
         st.caption("일치하는 찬양곡이 없습니다.")
 
 # Stateful Tabs (100% Cross-origin Cloud Safe)
-tab_options = ["1. 콘티 작성", "2. PPT 기획안", "3. 클라우드 보관소", "4. 프로그램 & 설명서 다운로드"]
+tab_options = ["1. 콘티 작성", "2. 슬라이드 편집", "3. 자료실", "4. 사용 설명서"]
 
 if "switch_to_tab" in st.session_state:
     st.session_state.selected_tab = st.session_state.switch_to_tab
@@ -618,8 +624,6 @@ active_tab = st.radio(
 # TAB 1: CONTI WRITING
 # ==========================================
 if active_tab == "1. 콘티 작성":
-    st.subheader("1단계: 콘티 서식 작성")
-    
     cur_conti = st.session_state.get("conti_editor", st.session_state.conti_text)
     parsed_preview = parse_user_conti(cur_conti)
     
@@ -648,27 +652,21 @@ if active_tab == "1. 콘티 작성":
         )
         st.session_state.conti_text = user_conti
             
-        if st.button("PPT 기획안 생성 ➔", type="primary", use_container_width=True):
+        if st.button("슬라이드 생성 ➡️", type="primary", use_container_width=True):
             if not st.session_state.conti_text.strip():
                 st.warning("⚠️ 콘티 내용을 입력하거나 .txt 파일을 업로드한 후 버튼을 눌러주세요!")
             else:
-                # 기획안 생성 시 콘티의 찬양곡들을 현재 선택된 부서 라이브러리에 자동 아카이빙/저장
-                dept_for_save = "기타" if template_mode == "내 PC에서 직접 업로드" else normalize_department_name(active_template_name or "청년부")
-                saved_files = decompose_and_save_songs_from_conti(st.session_state.conti_text, department=dept_for_save)
-                if saved_files:
-                    st.toast(f"💾 찬양곡 {len(saved_files)}곡이 [{dept_for_save}] 라이브러리에 자동 저장/업데이트되었습니다.")
-                    
                 parsed = parse_user_conti(st.session_state.conti_text)
                 new_plan = generate_plan_text_from_conti(parsed)
                 st.session_state.plan_text = new_plan
                 st.session_state.plan_editor = new_plan
-                st.session_state.switch_to_tab = "2. PPT 기획안"
+                st.session_state.switch_to_tab = "2. 슬라이드 편집"
                 st.rerun()
             
     with col_guide:
         lint_res = validate_conti_text(parsed_preview)
         
-        st.markdown("##### ⚡ 실시간 서식 검사")
+        st.markdown("##### 💡 작성 도움말")
         if lint_res["warnings"]:
             for w in lint_res["warnings"]:
                 st.warning(f"⚠️ {w}")
@@ -689,7 +687,7 @@ if active_tab == "1. 콘티 작성":
         if matched_in_conti:
             st.divider()
             st.markdown("##### 📚 라이브러리 일치 찬양 감지")
-            st.caption("기존에 불렀던 버전의 가사와 송폼으로 본문을 1:1 교체하거나 추가할 수 있습니다.")
+            st.caption("기존에 불렀던 버전의 가사와 송폼으로 본문을 1:1 바꿀 수 있습니다.")
             for s_order, lib_title, vers in matched_in_conti:
                 with st.expander(f"🎵 곡 {s_order}번: {lib_title} ({len(vers)}개 버전)", expanded=True):
                     for v in vers:
@@ -698,12 +696,12 @@ if active_tab == "1. 콘티 작성":
                             st.caption(f"루틴: `{v['routine']}`")
                         col_btn_rep, col_btn_add = st.columns([1.1, 0.9])
                         with col_btn_rep:
-                            if st.button(f"🔄 {s_order}번 곡 전체 교체", key=f"rec_rep_{lib_title}_{v['date']}_{s_order}", help=f"콘티의 {s_order}번 곡 내용을 이 버전으로 교체합니다.", use_container_width=True):
+                            if st.button(f"🔄 {s_order}번 곡 바꾸기", key=f"rec_rep_{lib_title}_{v['date']}_{s_order}", help=f"콘티의 {s_order}번 곡 내용을 이 버전으로 바꿉니다.", use_container_width=True):
                                 new_c = replace_song_in_conti(cur_conti, s_order, v['data'])
                                 st.session_state.pending_conti_update = new_c
                                 st.rerun()
                         with col_btn_add:
-                            if st.button(f"➕ 끝에 새 곡 추가", key=f"rec_add_{lib_title}_{v['date']}_{s_order}", help="이 찬양을 콘티 맨 끝에 새로운 순번으로 추가합니다.", use_container_width=True):
+                            if st.button(f"➕ 순서 끝에 추가", key=f"rec_add_{lib_title}_{v['date']}_{s_order}", help="이 찬양을 콘티 맨 끝에 새로운 순번으로 추가합니다.", use_container_width=True):
                                 new_c = append_song_to_conti(cur_conti, v['data'])
                                 st.session_state.pending_conti_update = new_c
                                 st.rerun()
@@ -722,19 +720,13 @@ if active_tab == "1. 콘티 작성":
             """)
 
 # ==========================================
-# TAB 2: PPT PLAN TEXT (HUMAN GATE)
+# TAB 2: SLIDE EDITING
 # ==========================================
-elif active_tab == "2. PPT 기획안":
-    st.subheader("2단계: PPT 기획안 검토 및 수정")
-    st.caption("생성된 슬라이드 텍스트를 검토하고 오탈자나 [BLANK] 암전 위치를 자유롭게 수정하세요.")
-    
+elif active_tab == "2. 슬라이드 편집":
     # 상단 메트릭 자리 예약 (실시간 동기화)
     metric_placeholder = st.empty()
         
     st.divider()
-    
-    st.markdown("##### ✏️ 슬라이드 기획안 편집 (IDE 코드 에디터 스타일)")
-    st.caption("좌측 넘버링 거터에 슬라이드 번호(1, 2, 3...)가 실시간으로 표시됩니다. 빈 줄(더블 엔터)로 슬라이드가 구분되며 스크롤이 완벽히 동기화됩니다.")
     
     # 에디터로부터 최신 텍스트 수신
     plan_user_input = render_slide_ide_editor(
@@ -758,24 +750,22 @@ elif active_tab == "2. PPT 기획안":
             st.metric("총 슬라이드 수", f"{total_slide_count} 장")
         with c_stat2:
             template_display = active_template_name if active_template_name else "미지정 (사이드바 설정 필요)"
-            st.metric("적용 기준 PPT", template_display)
+            st.metric("적용 서식", template_display)
         with c_stat3:
-            st.metric("적용 표지 이미지", active_cover_name)
+            st.metric("적용 표지", active_cover_name)
         
     st.divider()
     
     is_template_ready = (active_template_source is not None)
     
     if not is_template_ready:
-        st.warning("⚠️ **[필수] 기준 PPT가 설정되지 않았습니다.**\n\n좌측 사이드바의 **「📁 기준 PPT 설정」**에서 [교회 표준 프리셋]을 선택하거나 [직접 파일 업로드]를 완료해야 PPT를 생성할 수 있습니다.")
-    else:
-        st.info(f"🎯 **적용 중인 기준 PPT**: `{active_template_name}`")
+        st.warning("⚠️ **[필수] 표준 양식이 설정되지 않았습니다.**\n\n좌측 사이드바의 **「📁 표준 양식 설정」**에서 [교회 표준 양식 선택]을 지정하거나 [내 PC에서 직접 업로드]를 완료해야 PPT를 생성할 수 있습니다.")
         
     if st.button("PPT 파일 생성", type="primary", use_container_width=True, disabled=not is_template_ready):
         if not current_slides:
-            st.warning("⚠️ 슬라이드 기획안 내용이 비어있습니다. 1단계에서 콘티를 작성 후 생성해 주세요.")
+            st.warning("⚠️ 슬라이드 내용이 비어있습니다. 1. 콘티 작성 탭에서 콘티를 작성 후 생성해 주세요.")
         else:
-            with st.spinner("기준 PPT 서식 및 폰트 임베딩을 1:1 딥클론하여 PPTX 빌드 중..."):
+            with st.spinner("표준 양식 서식 및 폰트를 복제하여 PPT 파일 생성 중..."):
                 prs = build_praise_pptx(current_slides, template_source=active_template_source, cover_image=active_cover_source)
                 
                 parsed = parse_user_conti(st.session_state.get("conti_editor", st.session_state.conti_text))
@@ -834,46 +824,9 @@ elif active_tab == "2. PPT 기획안":
                 st.success(f"🎉 **{len(current_slides)}장의 찬양 PPT 생성 완료!**\n\n📁 `데이터 보관함/2_찬양_PPT/{standard_filename}` 에 자동 보관되었으며, {len(saved_song_files)}개 찬양곡이 라이브러리에 개별 분해 적재되었습니다.{cloud_status_msg}")
 
 # ==========================================
-# TAB 3: CLOUD STORAGE & ARCHIVE
+# TAB 3: MATERIALS ARCHIVE
 # ==========================================
-elif active_tab == "3. 클라우드 보관소":
-    st.subheader("3단계: 텔레그램 클라우드 보관소")
-    st.caption("교회 텔레그램 비공개 채널에 영구 보존된 찬양 PPT 및 찬양곡 자산을 실시간 열람하고 복원할 수 있습니다.")
-
-    # 상단 상태 및 컨트롤 바
-    c_hdr1, c_hdr2 = st.columns([8, 4])
-    with c_hdr1:
-        st.markdown("""
-        <div class="cloud-channel-info-box" style="background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); padding: 10px 16px; border-radius: 8px; height: 74px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.92rem; line-height: 1.35;">
-                📢 연동 채널: <code>찬양 PPT 라이브러리</code> &nbsp;|&nbsp; 봇: <code>@praise_PPT_library_manager_bot</code>
-            </div>
-            <div style="font-size: 0.81rem; color: #475569; margin-top: 4px; line-height: 1.35;">
-                🔄 자동 동기화: 프로그램 시작 시 및 매 30분마다 원격 갱신 사항을 자동으로 확인합니다.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c_hdr2:
-        if st.button("🔄 클라우드 즉시 동기화", use_container_width=True, help="텔레그램 채널의 최신 카탈로그 및 변경사항을 지금 즉시 새로고침합니다."):
-            with st.spinner("원격 클라우드 카탈로그 동기화 중..."):
-                sync_summary = sync_on_startup(active_template_name)
-                st.session_state.last_cloud_sync_time = time.time()
-                ota_cnt = sync_summary.get("ota_presets_count", 0)
-                if ota_cnt > 0:
-                    st.toast(f"🎉 텔레그램에서 원격 표지/프리셋 {ota_cnt}건이 최신으로 갱신되었습니다!")
-                else:
-                    st.toast("✅ 클라우드 동기화 완료!")
-                st.rerun()
-
-        st.link_button(
-            "✈️ 텔레그램 채널 바로가기",
-            TELEGRAM_CHANNEL_LINK,
-            use_container_width=True,
-            help="텔레그램 공식 클라우드 채널로 이동하여 업로드된 PPT 및 찬양곡을 확인합니다."
-        )
-
-    st.divider()
-
+elif active_tab == "3. 자료실":
     # 현재 적용된 부서 / 프리셋 확인
     if template_mode == "내 PC에서 직접 업로드":
         current_dept = "기타"
@@ -885,12 +838,12 @@ elif active_tab == "3. 클라우드 보관소":
     with col_f1:
         archive_view = st.radio(
             "자료 구분",
-            [f"📊 [{current_dept}] 찬양 PPT", "🌐 전체 부서 찬양 PPT", "🎵 찬양곡 라이브러리"],
+            [f"📊 [{current_dept}] 찬양 PPT", "🌐 전체 찬양 PPT", "🎵 찬양곡 자료실"],
             horizontal=True,
             label_visibility="collapsed"
         )
     with col_f2:
-        search_kw = st.text_input("보관소 검색", placeholder="제목 또는 날짜 검색 (예: 2026.09, 꽃들도)", label_visibility="collapsed")
+        search_kw = st.text_input("자료 검색", placeholder="제목 또는 날짜 검색 (예: 2026.09, 꽃들도)", label_visibility="collapsed")
 
     catalog = load_local_catalog()
     all_items = catalog.get("items", [])
@@ -930,10 +883,10 @@ elif active_tab == "3. 클라우드 보관소":
         # 보유 현황 통계 산출
         local_count = sum(1 for it in ppt_items if os.path.exists(os.path.join(DIR_PPTX, it.get("filename", ""))))
         cloud_only_count = len(ppt_items) - local_count
-        st.caption(f"총 {len(ppt_items)}개의 PPT 등록됨 (🟢 내 PC 보관: {local_count}개 | ☁️ 클라우드 전용: {cloud_only_count}개)")
+        st.caption(f"총 {len(ppt_items)}개의 PPT 등록됨 (🟢 내려받기 가능: {local_count}개 | ☁️ 클라우드 보관 중: {cloud_only_count}개)")
 
         if not ppt_items:
-            st.info(f"ℹ️ 등록된 [{current_dept if is_dept_filtered else '전체'}] 찬양 PPT가 없습니다. 2단계에서 PPT를 생성하면 이곳에 자동으로 백업됩니다.")
+            st.info(f"ℹ️ 등록된 [{current_dept if is_dept_filtered else '전체'}] 찬양 PPT가 없습니다.")
         else:
             for it in ppt_items:
                 fname = it.get("filename")
@@ -946,9 +899,9 @@ elif active_tab == "3. 클라우드 보관소":
                 is_local = os.path.exists(local_fpath)
 
                 status_badge = (
-                    "<span style='background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;'>🟢 내 PC 보관 중</span>"
+                    "<span style='background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;'>🟢 내려받기 가능</span>"
                     if is_local else
-                    "<span style='background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;'>☁️ 클라우드 전용 (PC 미보유)</span>"
+                    "<span style='background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;'>☁️ 클라우드 보관 중</span>"
                 )
 
                 with st.container():
@@ -958,11 +911,10 @@ elif active_tab == "3. 클라우드 보관소":
                         st.caption(f"파일명: `{fname}`")
                     with c_card_act:
                         if is_local:
-                            st.markdown("<div style='color:#15803d; font-weight:700; font-size:0.85rem; margin-bottom:6px;'>✅ 보관함에 저장되어 있습니다</div>", unsafe_allow_html=True)
                             if os.path.exists(local_fpath):
                                 with open(local_fpath, "rb") as f_dl:
                                     st.download_button(
-                                        "📥 내 기기로 다운로드",
+                                        "📥 다운로드",
                                         data=f_dl.read(),
                                         file_name=fname,
                                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -970,14 +922,13 @@ elif active_tab == "3. 클라우드 보관소":
                                         use_container_width=True
                                     )
                         else:
-
                             file_id = it.get("file_id")
                             if file_id:
-                                if st.button(f"📥 클라우드에서 PC로 내려받기", key=f"dl_cloud_{fname}", use_container_width=True, type="primary"):
+                                if st.button("📥 다운로드", key=f"dl_cloud_{fname}", use_container_width=True, type="primary"):
                                     with st.spinner("클라우드에서 다운로드 중..."):
                                         dl_ok, dl_err = download_file_by_id(file_id, local_fpath)
                                         if dl_ok:
-                                            st.toast(f"✅ PC 보관함으로 내려받기 완료: {fname}")
+                                            st.toast(f"✅ 다운로드 완료: {fname}")
                                             st.rerun()
                                         else:
                                             st.error(f"다운로드 실패: {dl_err}")
@@ -985,7 +936,7 @@ elif active_tab == "3. 클라우드 보관소":
                                 st.caption("클라우드 파일 ID 없음")
                     st.divider()
 
-    # 2. 찬양곡 라이브러리 뷰
+    # 2. 찬양곡 자료실 뷰
     else:
         song_items = [it for it in all_items if it.get("type") == "찬양곡"]
         if search_kw.strip():
@@ -994,10 +945,10 @@ elif active_tab == "3. 클라우드 보관소":
 
         local_song_count = sum(1 for it in song_items if os.path.exists(os.path.join(DIR_SONGS, sanitize_filename_part(it.get("title", "")), it.get("filename", ""))))
         cloud_only_song_count = len(song_items) - local_song_count
-        st.caption(f"총 {len(song_items)}개의 찬양곡 버전 등록됨 (🟢 내 PC 보관: {local_song_count}개 | ☁️ 클라우드 전용: {cloud_only_song_count}개)")
+        st.caption(f"총 {len(song_items)}개의 찬양곡 등록됨 (🟢 내려받기 가능: {local_song_count}개 | ☁️ 클라우드 보관 중: {cloud_only_song_count}개)")
 
         if not song_items:
-            st.info("ℹ️ 클라우드에 보관된 찬양곡이 없습니다.")
+            st.info("ℹ️ 등록된 찬양곡이 없습니다.")
         else:
             for it in song_items:
                 fname = it.get("filename")
@@ -1009,9 +960,9 @@ elif active_tab == "3. 클라우드 보관소":
                 is_local = os.path.exists(local_spath)
 
                 status_badge = (
-                    "<span style='background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;'>🟢 내 PC 보관 중</span>"
+                    "<span style='background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;'>🟢 내려받기 가능</span>"
                     if is_local else
-                    "<span style='background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;'>☁️ 클라우드 전용 (PC 미보유)</span>"
+                    "<span style='background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;'>☁️ 클라우드 보관 중</span>"
                 )
 
                 with st.container():
@@ -1021,48 +972,110 @@ elif active_tab == "3. 클라우드 보관소":
                         st.caption(f"파일명: `{fname}`")
                     with c_sact:
                         if is_local:
-                            st.markdown("<div style='color:#15803d; font-weight:700; font-size:0.85rem; margin-bottom:6px;'>✅ 내 PC 라이브러리에 보유 중</div>", unsafe_allow_html=True)
+                            if os.path.exists(local_spath):
+                                with open(local_spath, "rb") as f_sdl:
+                                    st.download_button(
+                                        "📥 다운로드",
+                                        data=f_sdl.read(),
+                                        file_name=fname,
+                                        mime="application/json",
+                                        key=f"dl_lsong_{fname}",
+                                        use_container_width=True
+                                    )
                         else:
-
                             file_id = it.get("file_id")
                             if file_id:
-                                if st.button("📥 클라우드에서 PC로 내려받기", key=f"dl_song_{fname}", use_container_width=True, type="primary"):
+                                if st.button("📥 다운로드", key=f"dl_song_{fname}", use_container_width=True, type="primary"):
                                     with st.spinner("찬양곡 다운로드 중..."):
                                         os.makedirs(local_dir, exist_ok=True)
                                         dl_ok, dl_err = download_file_by_id(file_id, local_spath)
                                         if dl_ok:
-                                            st.toast(f"✅ 라이브러리에 저장 완료: {stitle}")
+                                            st.toast(f"✅ 다운로드 완료: {stitle}")
                                             st.rerun()
                                         else:
                                             st.error(f"다운로드 실패: {dl_err}")
                     st.divider()
 
 # ==========================================
-# TAB 4: DESKTOP APP & MANUAL DOWNLOAD
+# TAB 4: USER MANUAL
 # ==========================================
-elif active_tab == "4. 프로그램 & 설명서 다운로드":
-    st.subheader("4단계: 데스크톱 전용 프로그램 & 사용 설명서")
-    st.caption("고성능 윈도우 단독 프로그램을 다운로드하거나, 웹에서 즉시 최신 공식 설명서를 열람할 수 있습니다.")
+elif active_tab == "4. 사용 설명서":
+    st.markdown("### 📖 LOGOS 찬양 PPT 제작 스튜디오 사용 설명서")
+    
+    st.info("💡 **접속 비밀번호**: 초기 설정 비밀번호는 **`0000`** 입니다.")
+    
+    st.markdown("""
+---
 
-    # 1. 윈도우 전용 데스크톱 프로그램 (.exe) 다운로드 카드
+#### 0. 사이드바 사용
+프로그램의 기본 설정과 편의 기능을 제공합니다.
+
+- **0-1. 표준 양식 설정**
+  - 본 시스템은 기준이 되는 `.pptx` 파일의 서식과 폰트를 복제하여 새로운 찬양 PPT를 생성합니다.
+  - **교회 표준 양식**: 사전 등록된 기준 PPT 파일과 각 부서별 표지 이미지로 구성되어 있으며, 양식 선택 시 해당 세팅으로 자동 적용됩니다. (기본값: 청년부)
+  - **내 PC에서 직접 업로드**: PC에 보관 중인 기준 PPT 파일과 표지 이미지를 직접 업로드하여 일회성으로 사용할 수 있습니다.
+
+- **0-2. 등록된 찬양곡 검색**
+  - 사이드바 하단에서 시스템에 보관된 찬양곡을 검색할 수 있습니다.
+  - 찬양곡은 콘티에서 추출되며 작성 일자에 따라서 같은 곡이라도 버전별로 보관됩니다.
+  - 검색 결과에서 `[➕ 순서 끝에 추가]` 또는 `[🔄 n번 곡 바꾸기]`를 누르면 가사와 루틴이 에디터에 자동으로 채워집니다.
+
+---
+
+#### 1. 콘티 작성
+찬양팀 악보를 바탕으로 사용자가 직접 작성하는 단계입니다.
+
+- **1-1. 작성 기본**
+  - 콘티는 PPT의 슬라이드에 들어가게 될 내용을 작성하는 단계로 찬양 제목, 루틴(송폼), 파트별 가사 등으로 작성됩니다.
+  - 콘티의 양식은 우측 **[💡 작성 도움말]**의 안내를 참고하세요. 기본 양식이 자동으로 제공됩니다.
+  - 양식이 지워졌을 경우 페이지를 새로고침하면 기본 양식이 다시 나타납니다.
+  - 찬양팀 악보에서 루틴과 각 파트의 가사를 적으신 후, 하나의 슬라이드에 적절한 양의 가사가 들어가도록 편집합니다.
+  - **슬라이드 분할**: **더블 엔터(빈 줄 하나)**를 이용하여 슬라이드를 구분합니다. 줄바꿈(엔터 1번)으로 한 슬라이드 내 가사 모양을 정돈할 수 있습니다. (1슬라이드 당 1~2줄 권장)
+  - 작성 방법을 잘 모르실 경우, 사이드바 검색에서 찬양곡을 불러와 보시면 쉽게 이해하실 수 있습니다.
+  - 작성이 완료되면 하단의 **[슬라이드 생성 ➡️]** 버튼을 누릅니다.
+""")
+
+    st.warning("⚠️ **콘티 작성 시 주의 사항**\n\n본 시스템은 루틴을 바탕으로 각 파트를 자동으로 배치하는 방식으로 작동합니다. 각 파트의 이름(`[V]`, `[C]` 등)이 루틴에 존재하지 않거나 일치하지 않으면 PPT 생성이 불가하므로 주의해 주시기 바랍니다.")
+
+    st.markdown("""
+---
+
+#### 2. 슬라이드 편집
+콘티로부터 자동 생성된 슬라이드를 검토하고 편집합니다.
+
+- 콘티와 마찬가지로 **더블 엔터(빈 줄 하나)**로 각 슬라이드를 구분합니다.
+- 좌측 넘버링의 숫자는 **슬라이드 번호**를 의미하며, `[BLANK]`는 가사 없는 암전 화면을 의미합니다.
+- 내용 검토와 수정을 마친 후 하단의 **[PPT 파일 생성]** 버튼을 누릅니다.
+
+---
+
+#### 3. 자료실
+완성된 찬양 PPT 및 찬양곡 가사를 확인하고 내려받습니다.
+
+- 완성된 찬양 PPT와 찬양곡 가사는 안전하게 보관되어 이전 작업물을 보존한 상태로 데이터를 쌓아가며 작동합니다.
+- 부서별 찬양 PPT, 전체 찬양 PPT, 찬양곡 자료실 필터를 통해 원하는 자료를 검색할 수 있습니다.
+- **[📥 다운로드]** 버튼을 누르면 내 기기(PC, 태블릿, 모바일)로 즉시 저장됩니다.
+
+---
+
+#### 4. 윈도우 전용 데스크톱 프로그램 (.exe) 안내 (선택)
+웹 브라우저 없이 PC에서 단독 실행되는 전용 소프트웨어입니다.
+- 웹 버전과 모든 핵심 기능이 동일하나, PC 로컬 폴더에 데이터가 저장되므로 인터넷이 없는 **완전 오프라인 환경**에서도 로컬 보관함을 통해 찬양 PPT를 제작할 수 있습니다.
+- 완성된 PPT 파일을 윈도우 탐색기로 바로 열 수 있으며, 사용자 정의 표준 양식도 자유롭게 추가할 수 있습니다.
+""")
+
+    # 윈도우 전용 데스크톱 프로그램 (.exe) 다운로드 카드 (선택 권장 옵션)
     with st.container():
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1.5px solid #93c5fd; border-radius: 12px; padding: 22px 26px; margin-bottom: 24px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <div style="font-size: 1.35rem; font-weight: 800; color: #1e3a8a;">
-                    💻 LOGOS 찬양 PPT 제작 스튜디오 v1.5.0 (Windows 전용 설치기)
+        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1.5px solid #93c5fd; border-radius: 12px; padding: 20px 24px; margin-top: 12px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <div style="font-size: 1.15rem; font-weight: 800; color: #1e3a8a;">
+                    💻 Windows 전용 설치기 (.exe) 다운로드
                 </div>
-                <span style="background: #2563eb; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700;">공식 배포판</span>
+                <span style="background: #2563eb; color: white; padding: 3px 10px; border-radius: 16px; font-size: 0.78rem; font-weight: 700;">오프라인 PC 전용</span>
             </div>
-            <div style="font-size: 0.95rem; color: #334155; line-height: 1.6; margin-bottom: 16px;">
-                인터넷 브라우저 없이 PC에서 단독 실행되는 초경량 전용 소프트웨어 창입니다.<br>
-                생성된 PPT를 윈도우 탐색기로 자동 연결하며, 완전 오프라인 환경에서도 로컬 라이브러리를 통해 즉시 PPT를 제작할 수 있습니다.
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px; font-size: 0.88rem; color: #1e40af; font-weight: 600;">
-                <div>✨ 브라우저 없는 단독 독립 창 (pywebview)</div>
-                <div>📂 완성 PPT 파일 위치 탐색기 자동 열기</div>
-                <div>🔒 텔레그램 클라우드 자동 양방향 동기화</div>
-                <div>⚡ 초고속 네이티브 PPTX 렌더링 엔진</div>
+            <div style="font-size: 0.88rem; color: #334155; line-height: 1.55; margin-bottom: 12px;">
+                인터넷이 연결되지 않는 예배당 방송실 PC 등에서 오프라인으로 사용할 때 설치를 권장합니다.
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1070,71 +1083,14 @@ elif active_tab == "4. 프로그램 & 설명서 다운로드":
         col_dl1, col_dl2 = st.columns([7, 5])
         with col_dl1:
             st.link_button(
-                "🚀 Windows 전용 설치기 (.exe) 다운로드 (GitHub Releases)",
+                "🚀 Windows 설치기 (.exe) 다운로드 (GitHub Releases)",
                 "https://github.com/nimba789/worship-ppt-generator/releases",
                 type="primary",
                 use_container_width=True,
-                help="GitHub Releases 공식 저장소에서 최신 설치기 파일을 바로 내려받습니다."
+                help="GitHub Releases 공식 저장소에서 최신 설치기 파일을 내려받습니다."
             )
         with col_dl2:
-            st.caption("ℹ️ 설치기 파일 용량: 약 175 MB | 지원 OS: Windows 10 / 11 (64bit)")
-
-    st.divider()
-
-    # 2. 프로그램 공식 사용 설명서
-    st.markdown("#### 📖 LOGOS 찬양 PPT 제작 스튜디오 공식 설명서")
-    
-    tab_m1, tab_m2 = st.tabs(["🚀 [1부] 3분 완성 빠른 사용 흐름 가이드", "📚 [2부] 상세 기능 및 부록 (FAQ)"])
-    
-    with tab_m1:
-        st.markdown("""
-### 1단계: 프로그램 실행 및 기준 PPT 프리셋 선택
-- 사이드바의 **[📁 기준 PPT 설정]**에서 사용할 프리셋(예: **[청년부] 기준 PPT**)을 선택합니다.
-- 특정 부서 프리셋이 없는 경우 **[내 PC에서 직접 업로드]**를 선택하여 교회의 기존 찬양 PPT를 등록합니다.
-
----
-
-### 2단계: 1. 찬양 콘티 작성
-- 우측 사이드바의 **[🎵 찬양곡 라이브러리 검색]**에서 곡 제목을 검색한 후 **[➕ 콘티 끝에 추가]** 또는 **[🔄 n번 교체]**를 누르면 가사와 루틴이 자동으로 채워집니다.
-- 콘티 작성이 완료되면 하단의 **[➡️ 2단계: PPT 기획안 생성]** 버튼을 누릅니다.
-
----
-
-### 3단계: 2. PPT 기획안 검토 및 수정
-- 생성된 슬라이드 기획안이 **IDE 다크 에디터**에 슬라이드 번호(`1 |`, `2 |` ...)와 함께 정렬됩니다.
-- 오탈자를 교정하거나, 필요시 **엔터 두 번(빈 줄)**을 입력하여 새 슬라이드로 분할할 수 있습니다.
-- 준비가 끝나면 하단의 **[🎨 찬양 PPT 자동 생성 및 백업]** 버튼을 누릅니다.
-
----
-
-### 4단계: 3. PPT 다운로드 및 보관
-- 생성이 완료되면 **[💾 PPT 파일 다운로드]** 버튼으로 내 기기에 즉시 저장합니다.
-- 동시에 완성된 PPT와 분해된 찬양곡 가사는 **교회 텔레그램 클라우드 공식 채널에 자동 백업**되어 영구 보존됩니다.
-        """)
-
-    with tab_m2:
-        st.markdown("""
-### 📌 부록 A: 텔레그램 클라우드 봇 명령어
-찬양팀 텔레그램 채널에서 봇을 통해 언제든 자료를 추가하거나 관리할 수 있습니다:
-- **`#추가`**: `.pptx` 파일과 함께 `#추가 #청년부` 형태로 올리면 교회 공용 프리셋으로 즉시 등록됩니다.
-- **`#곡등록`**: 가사 JSON 파일이나 텍스트를 첨부하여 찬양곡 라이브러리에 원격 등록합니다.
-- **`#목록`**: 현재 클라우드에 등록된 프리셋 및 최신 PPT 목록을 실시간 조회합니다.
-
----
-
-### 📌 부록 B: 기준 PPT 프리셋 권장 규격
-- **화면 비율**: 16:9 와이드스크린 권장
-- **텍스트 박스**: 제목용 텍스트 상자와 본문 가사용 텍스트 상자가 명확히 구분된 단일 마스터 슬라이드 구조 권장
-- **폰트**: 나눔스퀘어라운드, 프리텐다드, 맑은 고딕 등 가독성이 높은 폰트 사용
-
----
-
-### 📌 부록 C: 자주 묻는 질문 (FAQ)
-- **Q. 폰트가 깨지거나 크기가 맞지 않나요?**
-  - A. 기준 PPT로 등록한 원본 PPT의 텍스트 상자 서식과 폰트 크기, 줄 간격을 시스템이 1:1로 정확하게 복제하므로 기준 PPT 파일의 텍스트 상자를 원하는 서식으로 맞춰두시면 항상 동일하게 생성됩니다.
-- **Q. 아이패드나 모바일에서도 사용할 수 있나요?**
-  - A. 네! 현재 보고 계시는 웹 프로그램을 통해 아이패드, 갤럭시탭, 스마트폰 어디서든 콘티 작성과 PPT 생성이 가능하며 생성 즉시 기기로 다운로드됩니다.
-        """)
+            st.caption("ℹ️ 설치 파일 용량: 약 175 MB | 지원 OS: Windows 10 / 11 (64bit)")
 
 # Global Style & DOM Injector (Localization + Custom Footer)
 st.html("""

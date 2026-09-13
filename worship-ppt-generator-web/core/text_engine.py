@@ -300,13 +300,13 @@ def validate_conti_text(parsed_data):
     
     date_str = parsed_data.get("date_str", "미입력")
     if date_str == "미입력":
-        warnings.append("표지 날짜가 감지되지 않았습니다. (예: `# 2026.09.13 모임명`)")
+        warnings.append("표지 날짜를 적어주세요. (예: `# 2026.09.13 청년 모임`)")
     else:
         infos.append(f"날짜: {date_str}")
         
     prayer = parsed_data.get("prayer_person", "미입력")
     if prayer == "미입력":
-        warnings.append("대표기도자가 감지되지 않았습니다. (예: `기도: ㅇㅇㅇ 청년`)")
+        warnings.append("대표기도자를 적어주세요. (예: `기도: ㅇㅇㅇ 청년`)")
     else:
         infos.append(f"기도자: {prayer}")
         
@@ -322,11 +322,12 @@ def validate_conti_text(parsed_data):
             parts = s.get("parts", {})
             
             if not title:
-                warnings.append(f"곡 {idx+1}: 찬양 제목이 입력되지 않았습니다.")
+                warnings.append(f"곡 {idx+1}의 제목을 적어주세요.")
             if not items:
-                warnings.append(f"{display_title}: 루틴(송폼) 선언이 누락되었습니다. (예: `루틴: V - C`)")
+                warnings.append(f"{display_title}의 루틴이 누락되었습니다. (예: `루틴: V - C`)")
             if not parts:
-                warnings.append(f"{display_title}: 파트 가사(`[V]`, `[C]` 등)가 작성되지 않았습니다.")
+                warnings.append(f"{display_title}의 파트별 가사를 적어주세요.")
+
             else:
                 for (token, _) in items:
                     base = get_base_part_key(token).upper()

@@ -172,7 +172,7 @@
 <div class="pin-card" id="pinCard" onclick="focusInput()">
   <div class="pin-icon" id="pinIcon">🔒</div>
   <div class="pin-title">LOGOS 찬양 PPT 스튜디오</div>
-  <div class="pin-subtitle">찬양팀 접속 비밀번호(숫자 4자리)를 입력하세요.</div>
+  <div class="pin-subtitle">비밀번호를 입력하세요.</div>
 
   <input 
     type="tel" 
@@ -192,7 +192,7 @@
     <div class="pin-box" id="box3"><div class="pin-dot" id="dot3"></div></div>
   </div>
 
-  <div class="status-msg" id="statusMsg">숫자 4자리를 입력하면 즉시 접속됩니다.</div>
+  <div class="status-msg" id="statusMsg"></div>
 </div>
 
 <script>
@@ -249,7 +249,7 @@
 
     if (len === 0) {
       statusMsg.className = 'status-msg';
-      statusMsg.innerText = '숫자 4자리를 입력하면 즉시 접속됩니다.';
+      statusMsg.innerText = '';
     } else if (len < 4) {
       statusMsg.className = 'status-msg';
       statusMsg.innerText = len + ' / 4자리 입력 중...';
@@ -270,7 +270,7 @@
       }
 
       statusMsg.className = 'status-msg success';
-      statusMsg.innerText = '✨ 인증 완료! 메인 화면으로 이동합니다...';
+      statusMsg.innerText = '✨ 인증 성공! 자료실과 동기화 중입니다...';
 
       // 즉시 Streamlit Python으로 0000 전송하여 세션 언락
       sendToStreamlit("streamlit:setComponentValue", { value: "0000" });
