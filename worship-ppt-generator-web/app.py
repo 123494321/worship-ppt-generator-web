@@ -339,26 +339,6 @@ else:
             pass
 
 cloud_badge = "🟢 클라우드 연결됨" if st.session_state.get("cloud_connected", True) else "⚪ 오프라인 모드"
-badge_bg = "rgba(16, 185, 129, 0.25)" if st.session_state.get("cloud_connected", True) else "rgba(148, 163, 184, 0.25)"
-badge_border = "#10b981" if st.session_state.get("cloud_connected", True) else "#94a3b8"
-
-# Header
-st.markdown(f"""
-<div class="main-title-container">
-    <div>
-        <div class="main-title">🎵 LOGOS 찬양 PPT 제작 스튜디오</div>
-        <div class="main-subtitle">1. 콘티 작성 ➔ 2. 슬라이드 편집 ➔ 3. 자료실</div>
-    </div>
-    <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="background: {badge_bg}; border: 1px solid {badge_border}; padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 700; color: white;">
-            {cloud_badge}
-        </span>
-        <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">
-            v1.5.0
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
 # Sidebar: Global Settings & File Handlers
 with st.sidebar:
@@ -602,6 +582,15 @@ with st.sidebar:
     else:
         st.caption("일치하는 찬양곡이 없습니다.")
 
+    # 사이드바 최하단 시스템 정보 (은은한 푸터)
+    st.divider()
+    st.markdown(f"""
+    <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 2px 0 10px 0; line-height: 1.6;">
+        <div style="font-weight: 600; color: #64748b;">🎵 LOGOS 찬양 스튜디오</div>
+        <div style="margin-top: 2px;">{cloud_badge} · v1.5.0</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 # Stateful Tabs (100% Cross-origin Cloud Safe)
 tab_options = ["1. 콘티 작성", "2. 슬라이드 편집", "3. 자료실", "4. 사용 설명서"]
 
@@ -664,52 +653,9 @@ if active_tab == "1. 콘티 작성":
                 st.rerun()
             
     with col_guide:
-        lint_res = validate_conti_text(parsed_preview)
-        
-        st.markdown("##### 💡 작성 도움말")
-        if lint_res["warnings"]:
-            for w in lint_res["warnings"]:
-                st.warning(f"⚠️ {w}")
-        else:
-            st.success("✅ 콘티 서식이 올바릅니다.")
-            
-        # 비간섭형 찬양 라이브러리 자동 감지
-        all_lib = get_all_library_songs()
-        matched_in_conti = []
-        for s_idx, s in enumerate(parsed_preview.get("songs", [])):
-            s_raw = s.get("title", "").strip()
-            clean_s = re.sub(r'^\d+[\.\s]+', '', s_raw).strip()
-            for lib_title, vers in all_lib.items():
-                if (clean_s and clean_s.lower() == lib_title.lower()) or (s_raw and s_raw.lower() == lib_title.lower()):
-                    matched_in_conti.append((s_idx + 1, lib_title, vers))
-                    break
-                    
-        if matched_in_conti:
-            st.divider()
-            st.markdown("##### 📚 라이브러리 일치 찬양 감지")
-            st.caption("기존에 불렀던 버전의 가사와 송폼으로 본문을 1:1 바꿀 수 있습니다.")
-            for s_order, lib_title, vers in matched_in_conti:
-                with st.expander(f"🎵 곡 {s_order}번: {lib_title} ({len(vers)}개 버전)", expanded=True):
-                    for v in vers:
-                        st.markdown(f"**날짜**: `{v['date']}`")
-                        if v.get('routine'):
-                            st.caption(f"루틴: `{v['routine']}`")
-                        col_btn_rep, col_btn_add = st.columns([1.1, 0.9])
-                        with col_btn_rep:
-                            if st.button(f"🔄 {s_order}번 곡 바꾸기", key=f"rec_rep_{lib_title}_{v['date']}_{s_order}", help=f"콘티의 {s_order}번 곡 내용을 이 버전으로 바꿉니다.", use_container_width=True):
-                                new_c = replace_song_in_conti(cur_conti, s_order, v['data'])
-                                st.session_state.pending_conti_update = new_c
-                                st.rerun()
-                        with col_btn_add:
-                            if st.button(f"➕ 순서 끝에 추가", key=f"rec_add_{lib_title}_{v['date']}_{s_order}", help="이 찬양을 콘티 맨 끝에 새로운 순번으로 추가합니다.", use_container_width=True):
-                                new_c = append_song_to_conti(cur_conti, v['data'])
-                                st.session_state.pending_conti_update = new_c
-                                st.rerun()
-
-        st.divider()
-        with st.expander("📌 콘티 작성 규칙 안내", expanded=False):
+        with st.expander("📌 콘티 작성 규칙 안내", expanded=True):
             st.markdown("""
-            고정 정보(# 모임명, 기도자), 곡 제목(##), 루틴 문자열, 파트([V], [C] 등)를 표준 서식에 맞춰 작성하세요. 슬라이드는 **빈 줄(더블 엔터)**로 자동 분할됩니다.
+            고정 정보(#), 곡 제목(##), 루틴 문자열, 파트([V], [C] 등)를 표준 서식에 맞춰 작성하세요. 슬라이드는 **빈 줄(더블 엔터)**로 자동 분할됩니다.
             
             - **표지 정보**: `# 2026.09.13 LOGOS 청년 모임`
             - **대표기도자**: `기도: ㅇㅇㅇ 청년`
@@ -718,6 +664,16 @@ if active_tab == "1. 콘티 작성":
             - **파트 선언**: `[V]`, `[V1]`, `[V2]`, `[P]`, `[C]`, `[B]` 등
             - **슬라이드 분할**: **빈 줄 하나(더블 엔터)**를 넣으면 다음 슬라이드로 넘어갑니다. (1슬라이드 당 1~2줄 권장)
             """)
+
+        st.divider()
+
+        st.markdown("##### 💡 작성 도움말")
+        lint_res = validate_conti_text(parsed_preview)
+        if lint_res["warnings"]:
+            for w in lint_res["warnings"]:
+                st.warning(f"⚠️ {w}")
+        else:
+            st.success("✅ 콘티 서식이 올바릅니다.")
 
 # ==========================================
 # TAB 2: SLIDE EDITING
@@ -945,7 +901,7 @@ elif active_tab == "3. 자료실":
 
         local_song_count = sum(1 for it in song_items if os.path.exists(os.path.join(DIR_SONGS, sanitize_filename_part(it.get("title", "")), it.get("filename", ""))))
         cloud_only_song_count = len(song_items) - local_song_count
-        st.caption(f"총 {len(song_items)}개의 찬양곡 등록됨 (🟢 내려받기 가능: {local_song_count}개 | ☁️ 클라우드 보관 중: {cloud_only_song_count}개)")
+        st.caption(f"총 {len(song_items)}개의 찬양곡 보관됨 (사이드바 '🎵 등록된 찬양곡 검색'을 통해 콘티에 바로 불러올 수 있습니다)")
 
         if not song_items:
             st.info("ℹ️ 등록된 찬양곡이 없습니다.")
@@ -960,40 +916,14 @@ elif active_tab == "3. 자료실":
                 is_local = os.path.exists(local_spath)
 
                 status_badge = (
-                    "<span style='background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;'>🟢 내려받기 가능</span>"
+                    "<span style='background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;'>🟢 보유 중</span>"
                     if is_local else
-                    "<span style='background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;'>☁️ 클라우드 보관 중</span>"
+                    "<span style='background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;'>☁️ 클라우드 보관</span>"
                 )
 
                 with st.container():
-                    c_sinfo, c_sact = st.columns([7, 5])
-                    with c_sinfo:
-                        st.markdown(f"**🎵 {stitle}** &nbsp; <span style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-size:0.8rem;'>{dept_badge}</span> &nbsp; {status_badge} &nbsp; <span style='color:#64748b; font-size:0.85rem;'>버전일자: {sdate}</span>", unsafe_allow_html=True)
-                        st.caption(f"파일명: `{fname}`")
-                    with c_sact:
-                        if is_local:
-                            if os.path.exists(local_spath):
-                                with open(local_spath, "rb") as f_sdl:
-                                    st.download_button(
-                                        "📥 다운로드",
-                                        data=f_sdl.read(),
-                                        file_name=fname,
-                                        mime="application/json",
-                                        key=f"dl_lsong_{fname}",
-                                        use_container_width=True
-                                    )
-                        else:
-                            file_id = it.get("file_id")
-                            if file_id:
-                                if st.button("📥 다운로드", key=f"dl_song_{fname}", use_container_width=True, type="primary"):
-                                    with st.spinner("찬양곡 다운로드 중..."):
-                                        os.makedirs(local_dir, exist_ok=True)
-                                        dl_ok, dl_err = download_file_by_id(file_id, local_spath)
-                                        if dl_ok:
-                                            st.toast(f"✅ 다운로드 완료: {stitle}")
-                                            st.rerun()
-                                        else:
-                                            st.error(f"다운로드 실패: {dl_err}")
+                    st.markdown(f"**🎵 {stitle}** &nbsp; <span style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-size:0.8rem;'>{dept_badge}</span> &nbsp; {status_badge} &nbsp; <span style='color:#64748b; font-size:0.85rem;'>버전일자: {sdate}</span>", unsafe_allow_html=True)
+                    st.caption(f"파일명: `{fname}`")
                     st.divider()
 
 # ==========================================
