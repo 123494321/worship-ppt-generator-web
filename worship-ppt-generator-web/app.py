@@ -171,6 +171,22 @@ st.markdown("""
         opacity: 0.9;
     }
     
+    /* 0. Compact Top Layout (Remove wasted top padding) */
+    .main .block-container,
+    [data-testid="stMainBlockContainer"],
+    section.main > div:has(.block-container) {
+        padding-top: 0.5rem !important;
+        padding-bottom: 2rem !important;
+    }
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        height: 2.2rem !important;
+        pointer-events: none;
+    }
+    header[data-testid="stHeader"] > * {
+        pointer-events: auto;
+    }
+    
     /* 1. Hide Deploy Button */
     [data-testid="stAppDeployButton"],
     .stAppDeployButton,
@@ -626,19 +642,6 @@ active_tab = st.radio(
 if active_tab == "1. 콘티 작성":
     parsed_preview = parse_user_conti(st.session_state.get("conti_text", ""))
     
-    c_m1, c_m2, c_m3, c_m4 = st.columns(4)
-    with c_m1:
-        st.metric("예배 날짜", parsed_preview.get("date_str", "미입력"))
-    with c_m2:
-        st.metric("모임명", parsed_preview.get("title", "미입력"))
-    with c_m3:
-        st.metric("대표기도자", parsed_preview.get("prayer_person", "미입력"))
-    with c_m4:
-        songs_cnt = len(parsed_preview.get("songs", []))
-        st.metric("등록 찬양곡", f"{songs_cnt} 곡")
-        
-    st.divider()
-    
     col_edit, col_guide = st.columns([7.2, 4.8])
     
     with col_edit:
@@ -658,10 +661,19 @@ if active_tab == "1. 콘티 작성":
         )
         st.session_state.conti_text = user_conti
 
-
-
+        # 슬라이드 생성 버튼 동적 레이블 생성
+        if template_mode == "교회 표준 양식 선택":
+            if active_template_name:
+                slide_btn_label = f"슬라이드 생성 ➡️ [적용 양식 : {active_template_name}]"
+            else:
+                slide_btn_label = "슬라이드 생성 ➡️ [표준 양식 미설정]"
+        else:
+            if active_template_source is not None:
+                slide_btn_label = "슬라이드 생성 ➡️ [적용 양식 : 사용자 지정]"
+            else:
+                slide_btn_label = "슬라이드 생성 ➡️ [기준 PPT 미업로드]"
             
-        if st.button("슬라이드 생성 ➡️", type="primary", use_container_width=True):
+        if st.button(slide_btn_label, type="primary", use_container_width=True):
             if not st.session_state.conti_text.strip():
                 st.warning("⚠️ 콘티 내용을 입력하거나 .txt 파일을 업로드한 후 버튼을 눌러주세요!")
             else:
@@ -699,10 +711,8 @@ if active_tab == "1. 콘티 작성":
 # TAB 2: SLIDE EDITING
 # ==========================================
 elif active_tab == "2. 슬라이드 편집":
-    # 상단 메트릭 자리 예약 (실시간 동기화)
+    # 상단 슬라이드 장수 요약 자리 예약 (실시간 동기화)
     metric_placeholder = st.empty()
-        
-    st.divider()
     
     # 에디터로부터 최신 텍스트 수신
     plan_user_input = render_slide_ide_editor(
@@ -719,18 +729,13 @@ elif active_tab == "2. 슬라이드 편집":
     current_slides = parse_plan_text_to_slides(current_plan)
     total_slide_count = len(current_slides)
     
-    # 상단 메트릭에 최신 수치를 1사이클 지연 없이 즉시 반영
+    # 상단에 슬라이드 장수 미니멀 표시
     with metric_placeholder.container():
-        c_stat1, c_stat2, c_stat3 = st.columns([3, 5, 4])
-        with c_stat1:
-            st.metric("총 슬라이드 수", f"{total_slide_count} 장")
-        with c_stat2:
-            template_display = active_template_name if active_template_name else "미지정 (사이드바 설정 필요)"
-            st.metric("적용 서식", template_display)
-        with c_stat3:
-            st.metric("적용 표지", active_cover_name)
-        
-    st.divider()
+        st.markdown(
+            f"<div style='font-size: 0.95rem; font-weight: 600; color: #475569; padding: 2px 0 4px 0;'>"
+            f"슬라이드 {total_slide_count}장</div>",
+            unsafe_allow_html=True
+        )
     
     is_template_ready = (active_template_source is not None)
     
