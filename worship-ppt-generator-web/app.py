@@ -281,10 +281,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# State initialization
+# State initialization (콘티 본문 영구 보존 및 동적 버전 키 체계)
+if "conti_version" not in st.session_state:
+    st.session_state.conti_version = 0
+
 if "pending_conti_update" in st.session_state:
     st.session_state.conti_text = st.session_state.pending_conti_update
-    st.session_state.conti_editor = st.session_state.pending_conti_update
+    st.session_state.conti_version = st.session_state.get("conti_version", 0) + 1
     del st.session_state.pending_conti_update
 
 if "active_preset_name" not in st.session_state:
@@ -293,12 +296,12 @@ if "active_preset_name" not in st.session_state:
 
 if "conti_text" not in st.session_state or not st.session_state.conti_text:
     st.session_state.conti_text = get_default_conti_template(st.session_state.active_preset_name)
-if "conti_editor" not in st.session_state:
-    st.session_state.conti_editor = st.session_state.conti_text
-elif "가사 1행을 입력하세요" in st.session_state.conti_editor:
+elif "가사 1행을 입력하세요" in st.session_state.conti_text:
     new_skel = get_default_conti_template(st.session_state.active_preset_name)
     st.session_state.conti_text = new_skel
-    st.session_state.conti_editor = new_skel
+    st.session_state.conti_version = st.session_state.get("conti_version", 0) + 1
+
+
 if "plan_text" not in st.session_state:
     st.session_state.plan_text = ""
 if "plan_editor" not in st.session_state:
@@ -373,16 +376,21 @@ with st.sidebar:
             active_template_name = selected_preset
             st.caption(f"📌 적용 중: **{selected_preset}**")
             
-            # 양식 변경 시 해당 양식 맞춤 기본 콘티 서식 자동 삽입
+            # 표준 양식 변경 시 처리 (사용자 작성 초안 보호)
             if st.session_state.get("active_preset_name") != selected_preset:
+                old_preset = st.session_state.get("active_preset_name")
                 st.session_state.active_preset_name = selected_preset
-                new_template = get_default_conti_template(selected_preset)
-                st.session_state.conti_text = new_template
-                st.session_state.conti_editor = new_template
+                cur_text = st.session_state.get("conti_text", "").strip()
+                old_template = get_default_conti_template(old_preset).strip() if old_preset else ""
+                # 기존 내용이 비어있거나 이전 표준 양식의 기본 서식 그대로인 경우에만 새 표준 양식 기본 서식으로 교체
+                if not cur_text or cur_text == old_template:
+                    st.session_state.conti_text = get_default_conti_template(selected_preset)
+                    st.session_state.conti_version = st.session_state.get("conti_version", 0) + 1
                 st.rerun()
 
         else:
-            st.info("💡 아직 등록된 공식 프리셋이 없습니다.\n\n텔레그램 채널에 일반 텍스트로 `#추가 : [프리셋 이름]`을 전송하여 프리셋을 생성해 보세요.\n\n(또는 '내 PC에서 직접 업로드'를 이용하세요)")
+            st.info("💡 아직 등록된 공식 표준 양식이 없습니다.\n\n텔레그램 채널에 일반 텍스트로 `#추가 : [양식 이름]`을 전송하여 표준 양식을 생성해 보세요.\n\n(또는 '내 PC에서 직접 업로드'를 이용하세요)")
+
     else:
         uploaded_template = st.file_uploader(
             "기준 PPT 파일 (.pptx)",
@@ -411,7 +419,7 @@ with st.sidebar:
         
         if detected_cover_path:
             use_preset_cover = st.checkbox(
-                f"프리셋 기본 표지 사용 ({detected_cover_name})",
+                f"표준 양식 기본 표지 사용 ({detected_cover_name})",
                 value=True,
                 help="체크 해제 시 표지 이미지 없이 텍스트 표지 슬라이드로 생성됩니다."
             )
@@ -433,8 +441,9 @@ with st.sidebar:
             custom_cover = st.file_uploader(
                 "다른 이미지로 이번 주만 임시 교체 (.png, .jpg)",
                 type=["png", "jpg", "jpeg"],
-                help="업로드 시 프리셋 기본 표지 대신 이 이미지가 우선 적용됩니다."
+                help="업로드 시 표준 양식의 기본 표지 대신 이 이미지가 우선 적용됩니다."
             )
+
             if custom_cover is not None:
                 active_cover_source = custom_cover
                 active_cover_name = custom_cover.name
@@ -551,8 +560,9 @@ with st.sidebar:
     matched_songs = search_library_with_version_limit(lib_search, max_versions=3)
     if matched_songs:
         st.caption(f"검색 결과 {len(matched_songs)}곡 (곡별 최신 3개 버전 우선 표시)")
-        current_c = st.session_state.get("conti_editor", st.session_state.conti_text).strip()
+        current_c = st.session_state.get("conti_text", "").strip()
         parsed_c = parse_user_conti(current_c)
+
         cur_songs = parsed_c.get("songs", [])
         
         for s_title, versions in matched_songs.items():
@@ -592,6 +602,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # Stateful Tabs (100% Cross-origin Cloud Safe)
+
 tab_options = ["1. 콘티 작성", "2. 슬라이드 편집", "3. 자료실", "4. 사용 설명서"]
 
 if "switch_to_tab" in st.session_state:
@@ -613,8 +624,7 @@ active_tab = st.radio(
 # TAB 1: CONTI WRITING
 # ==========================================
 if active_tab == "1. 콘티 작성":
-    cur_conti = st.session_state.get("conti_editor", st.session_state.conti_text)
-    parsed_preview = parse_user_conti(cur_conti)
+    parsed_preview = parse_user_conti(st.session_state.get("conti_text", ""))
     
     c_m1, c_m2, c_m3, c_m4 = st.columns(4)
     with c_m1:
@@ -632,14 +642,24 @@ if active_tab == "1. 콘티 작성":
     col_edit, col_guide = st.columns([7.2, 4.8])
     
     with col_edit:
+        def on_conti_editor_change():
+            current_key = f"conti_editor_v{st.session_state.get('conti_version', 0)}"
+            if current_key in st.session_state:
+                st.session_state.conti_text = st.session_state[current_key]
+
         user_conti = st.text_area(
             "콘티 본문",
+            value=st.session_state.get("conti_text", ""),
             height=540,
-            key="conti_editor",
+            key=f"conti_editor_v{st.session_state.get('conti_version', 0)}",
+            on_change=on_conti_editor_change,
             placeholder="# 2026.09.13 LOGOS 청년 모임\n기도: ㅇㅇㅇ 청년\n\n## 1. \n루틴: \n\n[V]\n\n[P]\n\n[C]\n\n## 2. \n루틴: \n\n[V]\n\n[P]\n\n[C]",
             label_visibility="collapsed"
         )
         st.session_state.conti_text = user_conti
+
+
+
             
         if st.button("슬라이드 생성 ➡️", type="primary", use_container_width=True):
             if not st.session_state.conti_text.strip():
@@ -724,7 +744,7 @@ elif active_tab == "2. 슬라이드 편집":
             with st.spinner("표준 양식 서식 및 폰트를 복제하여 PPT 파일 생성 중..."):
                 prs = build_praise_pptx(current_slides, template_source=active_template_source, cover_image=active_cover_source)
                 
-                parsed = parse_user_conti(st.session_state.get("conti_editor", st.session_state.conti_text))
+                parsed = parse_user_conti(st.session_state.get("conti_text", ""))
                 raw_date = parsed.get("date_str", "2026.09.06")
                 clean_date = raw_date.replace(".", "").replace(" ", "").replace("-", "") if raw_date != "미입력" else "20260101"
                 if template_mode == "내 PC에서 직접 업로드":
@@ -746,7 +766,7 @@ elif active_tab == "2. 슬라이드 편집":
                 # 3. 작성 콘티 초안을 데이터 보관함/4_찬양_콘티/ 에 로컬 자동 보관
                 try:
                     os.makedirs(DIR_CONTI, exist_ok=True)
-                    conti_content = st.session_state.get("conti_editor", st.session_state.conti_text)
+                    conti_content = st.session_state.get("conti_text", "")
                     with open(os.path.join(DIR_CONTI, f"{clean_date}_최근작업초안.txt"), "w", encoding="utf-8") as f:
                         f.write(conti_content)
                 except Exception:
@@ -958,7 +978,6 @@ elif active_tab == "4. 사용 설명서":
 - **1-1. 작성 기본**
   - 콘티는 PPT의 슬라이드에 들어가게 될 내용을 작성하는 단계로 찬양 제목, 루틴(송폼), 파트별 가사 등으로 작성됩니다.
   - 콘티의 양식은 우측 **[💡 작성 도움말]**의 안내를 참고하세요. 기본 양식이 자동으로 제공됩니다.
-  - 양식이 지워졌을 경우 페이지를 새로고침하면 기본 양식이 다시 나타납니다.
   - 찬양팀 악보에서 루틴과 각 파트의 가사를 적으신 후, 하나의 슬라이드에 적절한 양의 가사가 들어가도록 편집합니다.
   - **슬라이드 분할**: **더블 엔터(빈 줄 하나)**를 이용하여 슬라이드를 구분합니다. 줄바꿈(엔터 1번)으로 한 슬라이드 내 가사 모양을 정돈할 수 있습니다. (1슬라이드 당 1~2줄 권장)
   - 작성 방법을 잘 모르실 경우, 사이드바 검색에서 찬양곡을 불러와 보시면 쉽게 이해하실 수 있습니다.
