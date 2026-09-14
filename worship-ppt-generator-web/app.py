@@ -171,20 +171,24 @@ st.markdown("""
         opacity: 0.9;
     }
     
-    /* 0. Compact Top Layout (Remove wasted top padding) */
+    /* 0. Comfortable Compact Top Layout (Generous Tab Hit-Target) */
     .main .block-container,
     [data-testid="stMainBlockContainer"],
     section.main > div:has(.block-container) {
-        padding-top: 0.5rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
     }
-    header[data-testid="stHeader"] {
+    header[data-testid="stHeader"],
+    [data-testid="stHeader"],
+    .stAppToolbar {
+        pointer-events: none !important;
         background: transparent !important;
-        height: 2.2rem !important;
-        pointer-events: none;
     }
-    header[data-testid="stHeader"] > * {
-        pointer-events: auto;
+    header button,
+    header [role="button"],
+    [data-testid="stToolbarActions"],
+    [data-testid="stMainMenu"] {
+        pointer-events: auto !important;
     }
     
     /* 1. Hide Deploy Button */
@@ -216,6 +220,8 @@ st.markdown("""
         border-bottom: 2px solid #e2e8f0;
         padding-bottom: 0px;
         margin-bottom: 20px;
+        position: relative !important;
+        z-index: 999999 !important;
     }
     section.main div[data-testid="stRadio"] label,
     [data-testid="stMain"] div[data-testid="stRadio"] label {
