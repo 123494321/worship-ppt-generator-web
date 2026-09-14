@@ -143,8 +143,13 @@ if not st.session_state.get("authenticated", False):
     </style>
     """, unsafe_allow_html=True)
     
-    entered_pin = render_pin_gate(key="logos_pin_gate", allowed_pins=["0000", ADMIN_PIN])
-    if entered_pin == "0000":
+    try:
+        entered_pin = render_pin_gate(key="logos_pin_gate", allowed_pins=["0000", ADMIN_PIN])
+    except TypeError:
+        # 하위 호환성 방어: core/pin_gate_component.py가 구버전인 경우 예외 없이 안전 호출
+        entered_pin = render_pin_gate(key="logos_pin_gate")
+
+    if entered_pin in ("0000", True):
         st.session_state.authenticated = True
         st.session_state.is_admin = False
         st.session_state.app_mode = "general"
