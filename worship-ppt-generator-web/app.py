@@ -116,10 +116,17 @@ st.set_page_config(
 )
 
 from core.pin_gate_component import render_pin_gate
+from core.admin_component import render_admin_console
+from core.trash_manager import is_pptx_trashed, is_song_trashed
 
 # ==========================================
-# 0. 찬양팀 접속 인증 비밀번호 게이트 (4자리 0000 즉시 해제)
+# 0. 찬양팀 접속 인증 비밀번호 게이트 (일반 0000 / 관리자 7777)
 # ==========================================
+try:
+    ADMIN_PIN = str(st.secrets.get("ADMIN_PIN", "7777"))
+except Exception:
+    ADMIN_PIN = "7777"
+
 if not st.session_state.get("authenticated", False):
     st.markdown("""
     <style>
@@ -136,9 +143,16 @@ if not st.session_state.get("authenticated", False):
     </style>
     """, unsafe_allow_html=True)
     
-    entered_pin = render_pin_gate(key="logos_pin_gate")
+    entered_pin = render_pin_gate(key="logos_pin_gate", allowed_pins=["0000", ADMIN_PIN])
     if entered_pin == "0000":
         st.session_state.authenticated = True
+        st.session_state.is_admin = False
+        st.session_state.app_mode = "general"
+        st.rerun()
+    elif entered_pin == ADMIN_PIN:
+        st.session_state.authenticated = True
+        st.session_state.is_admin = True
+        st.session_state.app_mode = "admin"
         st.rerun()
     st.stop()
 
@@ -364,6 +378,24 @@ else:
             pass
 
 cloud_badge = "🟢 클라우드 연결됨" if st.session_state.get("cloud_connected", True) else "⚪ 오프라인 모드"
+
+# ==========================================
+# 관리자 모드(Admin Console) 전용 뷰 렌더링
+# ==========================================
+if st.session_state.get("app_mode") == "admin":
+    st.markdown("""
+    <style>
+        [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+            display: none !important;
+        }
+        .main .block-container {
+            max-width: 1200px !important;
+            padding-top: 1.5rem !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    render_admin_console()
+    st.stop()
 
 # Sidebar: Global Settings & File Handlers
 with st.sidebar:
@@ -623,6 +655,12 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    if st.session_state.get("is_admin", False):
+        st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+        if st.button("🛡️ 관리자 콘솔로 전환", key="btn_switch_to_admin", use_container_width=True):
+            st.session_state.app_mode = "admin"
+            st.rerun()
+
 # Stateful Tabs (100% Cross-origin Cloud Safe)
 
 tab_options = ["1. 콘티 작성", "2. 슬라이드 편집", "3. 자료실", "4. 사용 설명서"]
@@ -838,13 +876,13 @@ elif active_tab == "3. 자료실":
     # 1. 찬양 PPT 뷰
     if "찬양 PPT" in archive_view:
         is_dept_filtered = f"[{current_dept}]" in archive_view
-        ppt_items = [it for it in all_items if it.get("type") == "PPT"]
+        ppt_items = [it for it in all_items if it.get("type") == "PPT" and not is_pptx_trashed(it.get("filename"))]
         
         # 로컬 폴더(DIR_PPTX)에만 존재하는 파일도 카탈로그에 없는 경우 목록에 포함
         catalog_filenames = {it.get("filename") for it in ppt_items}
         if os.path.exists(DIR_PPTX):
             for f in os.listdir(DIR_PPTX):
-                if f.endswith(".pptx") and f not in catalog_filenames:
+                if f.endswith(".pptx") and f not in catalog_filenames and not is_pptx_trashed(f):
                     meta = parse_standard_filename(f)
                     ppt_items.append({
                         "filename": f,
@@ -925,12 +963,12 @@ elif active_tab == "3. 자료실":
 
     # 2. 찬양곡 자료실 뷰
     else:
-        song_items = [it for it in all_items if it.get("type") == "찬양곡"]
+        song_items = [it for it in all_items if it.get("type") == "찬양곡" and not is_song_trashed(it.get("title"), it.get("date"))]
         if search_kw.strip():
             kw = search_kw.strip().lower()
             song_items = [it for it in song_items if kw in it.get("title", "").lower() or kw in it.get("filename", "").lower()]
 
-        local_song_count = sum(1 for it in song_items if os.path.exists(os.path.join(DIR_SONGS, sanitize_filename_part(it.get("title", "")), it.get("filename", ""))))
+        local_song_count = sum(1 for it in song_items if os.path.exists(os.path.join(DIR_SONGS, sanitize_filename_part(it.get("title", "")), it.get("filename", ""))) and not is_song_trashed(it.get("title"), it.get("date")))
         cloud_only_song_count = len(song_items) - local_song_count
         st.caption(f"총 {len(song_items)}개의 찬양곡 보관됨 (사이드바 '🎵 등록된 찬양곡 검색'을 통해 콘티에 바로 불러올 수 있습니다)")
 

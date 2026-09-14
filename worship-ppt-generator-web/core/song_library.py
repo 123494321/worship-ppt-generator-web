@@ -24,9 +24,16 @@ def sanitize_filename(name):
     """폴더 및 파일명에 사용할 수 없는 특수문자를 안전하게 치환합니다."""
     return re.sub(r'[\\/*?:"<>|]', '', name).strip()
 
-def get_all_library_songs():
+try:
+    from core.trash_manager import is_song_trashed
+except Exception:
+    def is_song_trashed(song_title, date_str):
+        return False
+
+def get_all_library_songs(include_trashed=False):
     """
     데이터 보관함/3_찬양곡_라이브러리/ 내의 모든 찬양곡과 해당 곡의 날짜별 버전 목록을 반환합니다.
+    기본값(include_trashed=False)에서는 관리자 모드에서 휴지통으로 보낸 곡을 완전히 격리/제외합니다.
     """
     ensure_library_dir()
     songs = {}
@@ -46,6 +53,10 @@ def get_all_library_songs():
                             dept = meta.get("preset", data.get("department", "청년부")) if meta else data.get("department", "청년부")
                             parsed_date = meta.get("date", data.get("date", file_name[:-5])) if meta else data.get("date", file_name[:-5])
                             
+                            # 휴지통 격리 필터
+                            if not include_trashed and is_song_trashed(song_folder, parsed_date):
+                                continue
+
                             versions.append({
                                 "date": parsed_date,
                                 "routine": data.get("routine_raw", ""),
@@ -62,15 +73,15 @@ def get_all_library_songs():
                 
     return songs
 
-def search_library(query):
+def search_library(query, include_trashed=False):
     """
     검색어(곡 제목 일부)와 일치하는 찬양곡들을 반환합니다.
     """
     if not query or not query.strip():
-        return get_all_library_songs()
+        return get_all_library_songs(include_trashed=include_trashed)
         
     q = query.strip().lower()
-    all_songs = get_all_library_songs()
+    all_songs = get_all_library_songs(include_trashed=include_trashed)
     matched = {}
     
     for song_title, versions in all_songs.items():

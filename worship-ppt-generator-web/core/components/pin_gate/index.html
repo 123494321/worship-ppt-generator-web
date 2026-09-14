@@ -258,8 +258,11 @@
     }
   }
 
+  let allowedPins = ["0000", "7777"];
+
+  window.checkPin = checkPin;
   function checkPin(pin) {
-    if (pin === "0000") {
+    if (allowedPins.includes(pin)) {
       isUnlocked = true;
       icon.innerText = "🔓";
       icon.style.transform = "scale(1.15)";
@@ -270,10 +273,14 @@
       }
 
       statusMsg.className = 'status-msg success';
-      statusMsg.innerText = '✨ 인증 성공! 자료실과 동기화 중입니다...';
+      if (pin !== "0000") {
+        statusMsg.innerText = '🛡️ 관리자 권한 확인 완료! 콘솔을 로드합니다...';
+      } else {
+        statusMsg.innerText = '✨ 인증 성공! 자료실과 동기화 중입니다...';
+      }
 
-      // 즉시 Streamlit Python으로 0000 전송하여 세션 언락
-      sendToStreamlit("streamlit:setComponentValue", { value: "0000" });
+      // 즉시 Streamlit Python으로 pin 전송하여 세션 언락
+      sendToStreamlit("streamlit:setComponentValue", { value: pin });
     } else {
       for (let i = 0; i < 4; i++) {
         boxes[i].classList.remove('active');
@@ -309,6 +316,9 @@
   window.addEventListener("message", (event) => {
     if (event.data && event.data.type === "streamlit:render") {
       sendToStreamlit("streamlit:setFrameHeight", { height: 380 });
+      if (event.data.args && Array.isArray(event.data.args.allowed_pins)) {
+        allowedPins = event.data.args.allowed_pins;
+      }
     }
   });
 
