@@ -18,7 +18,8 @@ from core.cloud_config import (
     CHAT_ID,
     ensure_data_directories,
     sanitize_filename_part,
-    normalize_department_name
+    normalize_department_name,
+    parse_standard_filename
 )
 from core.cloud_sync import (
     load_local_catalog,
