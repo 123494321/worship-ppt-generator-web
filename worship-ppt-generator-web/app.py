@@ -1058,42 +1058,7 @@ elif active_tab == "4. 사용 설명서":
 - 완성된 찬양 PPT와 찬양곡 가사는 안전하게 보관되어 이전 작업물을 보존한 상태로 데이터를 쌓아가며 작동합니다.
 - 부서별 찬양 PPT, 전체 찬양 PPT, 찬양곡 자료실 필터를 통해 원하는 자료를 검색할 수 있습니다.
 - **[📥 다운로드]** 버튼을 누르면 내 기기(PC, 태블릿, 모바일)로 즉시 저장됩니다.
-
----
-
-#### 4. 윈도우 전용 데스크톱 프로그램 (.exe) 안내 (선택)
-웹 브라우저 없이 PC에서 단독 실행되는 전용 소프트웨어입니다.
-- 웹 버전과 모든 핵심 기능이 동일하나, PC 로컬 폴더에 데이터가 저장되므로 인터넷이 없는 **완전 오프라인 환경**에서도 로컬 보관함을 통해 찬양 PPT를 제작할 수 있습니다.
-- 완성된 PPT 파일을 윈도우 탐색기로 바로 열 수 있으며, 사용자 정의 표준 양식도 자유롭게 추가할 수 있습니다.
 """)
-
-    # 윈도우 전용 데스크톱 프로그램 (.exe) 다운로드 카드 (선택 권장 옵션)
-    with st.container():
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1.5px solid #93c5fd; border-radius: 12px; padding: 20px 24px; margin-top: 12px; margin-bottom: 20px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                <div style="font-size: 1.15rem; font-weight: 800; color: #1e3a8a;">
-                    💻 Windows 전용 설치기 (.exe) 다운로드
-                </div>
-                <span style="background: #2563eb; color: white; padding: 3px 10px; border-radius: 16px; font-size: 0.78rem; font-weight: 700;">오프라인 PC 전용</span>
-            </div>
-            <div style="font-size: 0.88rem; color: #334155; line-height: 1.55; margin-bottom: 12px;">
-                인터넷이 연결되지 않는 예배당 방송실 PC 등에서 오프라인으로 사용할 때 설치를 권장합니다.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        col_dl1, col_dl2 = st.columns([7, 5])
-        with col_dl1:
-            st.link_button(
-                "🚀 Windows 설치기 (.exe) 다운로드 (GitHub Releases)",
-                "https://github.com/nimba789/worship-ppt-generator/releases",
-                type="primary",
-                use_container_width=True,
-                help="GitHub Releases 공식 저장소에서 최신 설치기 파일을 내려받습니다."
-            )
-        with col_dl2:
-            st.caption("ℹ️ 설치 파일 용량: 약 175 MB | 지원 OS: Windows 10 / 11 (64bit)")
 
 # Global Style & DOM Injector (Localization + Custom Footer)
 st.html("""
