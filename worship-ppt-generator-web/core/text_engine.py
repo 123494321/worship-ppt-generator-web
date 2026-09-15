@@ -160,12 +160,9 @@ def generate_plan_text_from_conti(parsed_data, include_title_blank=False, includ
             elif major_upper in parts and parts[major_upper]:
                 part_slides = parts[major_upper]
             elif base_key == 'Tag':
-                if 'TAG' in parts and parts['TAG']:
-                    part_slides = parts['TAG']
-                elif 'C' in parts and parts['C']:
-                    part_slides = [parts['C'][-1]]
-                elif 'C1' in parts and parts['C1']:
-                    part_slides = [parts['C1'][-1]]
+                # 본문에 [Tag] 가사가 별도로 정의되지 않은 경우:
+                # 방송실 운영 관례(구간 반복 시 기존 화면 유지)에 따라 중복 슬라이드를 만들지 않고 직전 화면을 고정 유지
+                continue
                     
             if part_slides:
                 for _ in range(repeat_count):
