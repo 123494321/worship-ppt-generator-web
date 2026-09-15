@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #18181b;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Consolas", monospace;
+  }
+  .conti-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background: #18181b;
+    border: 1px solid #3f3f46;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  /* Top Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 38px;
+    min-height: 38px;
+    background: #202024;
+    border-bottom: 1px solid #3f3f46;
+    padding: 0 12px;
+    font-size: 12px;
+    user-select: none;
+  }
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 12px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    transition: all 0.2s ease;
+  }
+  .status-dot.saving {
+    background: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b;
+  }
+  .status-badge {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tool-btn {
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    color: #e4e4e7;
+    font-size: 11.5px;
+    font-family: inherit;
+    padding: 3px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+  }
+  .tool-btn:hover {
+    background: #3f3f46;
+    color: #ffffff;
+    border-color: #52525b;
+  }
+  .tool-btn.btn-restore {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34d399;
+  }
+  .tool-btn.btn-restore:hover {
+    background: rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+  }
+  .stats-info {
+    color: #71717a;
+    font-size: 11px;
+    margin-right: 4px;
+  }
+
+  /* Restore Banner */
+  .restore-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, #1e3a8a 0%, #1e40af 100%);
+    border-bottom: 1px solid #3b82f6;
+    color: #ffffff;
+    padding: 6px 14px;
+    font-size: 12px;
+    animation: fadeIn 0.2s ease;
+  }
+  .restore-banner.show {
+    display: flex;
+  }
+  .restore-banner-btn {
+    background: #2563eb;
+    border: 1px solid #60a5fa;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .restore-banner-btn:hover {
+    background: #1d4ed8;
+  }
+  .restore-banner-close {
+    background: transparent;
+    border: none;
+    color: #93c5fd;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 8px;
+    padding: 0 4px;
+  }
+  .restore-banner-close:hover {
+    color: #ffffff;
+  }
+
+  /* Main Editor Area */
+  .editor-body {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    width: 100%;
+    height: calc(100% - 38px);
+    overflow: hidden;
+  }
+  .gutter {
+    width: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    height: 100%;
+    background: #202024;
+    border-right: 1px solid #3f3f46;
+    color: #71717a;
+    text-align: right;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-right: 8px;
+    overflow: hidden;
+    user-select: none;
+    cursor: default;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 22px;
+  }
+  .gutter-line {
+    height: 22px;
+  }
+  .gutter-line.song-start {
+    color: #38bdf8;
+    font-weight: 700;
+  }
+  .gutter-line.blank-line {
+    color: #3f3f46;
+  }
+  
+  .editor-textarea {
+    flex: 1;
+    height: 100%;
+    background: #18181b;
+    color: #f4f4f5;
+    border: none;
+    outline: none;
+    padding: 12px 14px;
+    resize: none;
+    font-family: 'Consolas', 'Pretendard', monospace;
+    font-size: 13.5px;
+    line-height: 22px;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+  }
+  .editor-textarea::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  .editor-textarea::-webkit-scrollbar-track {
+    background: #18181b;
+  }
+  .editor-textarea::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 4px;
+  }
+  .editor-textarea::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
+
+  /* Toast message */
+  .toast {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    background: #1e293b;
+    border: 1px solid #38bdf8;
+    color: #f8fafc;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s ease;
+    z-index: 100;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="conti-wrapper">
+    <!-- Top Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="status-indicator">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">실시간 자동 저장됨</span>
+        </div>
+        <span class="status-badge">Ctrl+Enter 불필요</span>
+      </div>
+
+      <div class="toolbar-right">
+        <span class="stats-info" id="statsInfo">0줄</span>
+        <button class="tool-btn btn-restore" id="btnRestore" title="브라우저에 보관된 마지막 임시저장본을 불러옵니다">
+          📥 임시저장본 복구
+        </button>
+        <button class="tool-btn" id="btnManualSave" title="지금 즉시 브라우저와 서버에 저장합니다">
+          💾 즉시 저장
+        </button>
+      </div>
+    </div>
+
+    <!-- Recovery Notice Banner -->
+    <div class="restore-banner" id="restoreBanner">
+      <div id="restoreBannerText">💡 이전에 브라우저에 임시 저장된 콘티가 있습니다.</div>
+      <div>
+        <button class="restore-banner-btn" id="btnBannerRestore">지금 복구하기</button>
+        <button class="restore-banner-close" id="btnBannerClose">✕</button>
+      </div>
+    </div>
+
+    <!-- Main Editor Body -->
+    <div class="editor-body">
+      <div class="gutter" id="gutter"></div>
+      <textarea 
+        class="editor-textarea" 
+        id="editor" 
+        spellcheck="false" 
+        placeholder="# 2026.09.20 LOGOS 청년 모임&#10;기도: 홍길동 청년&#10;&#10;## 1. 꽃들도&#10;루틴: Intro(8) - V - C - V - C&#10;&#10;[V]&#10;이곳에 생명 샘 솟아나&#10;눈물 골짝 지나갈 때에&#10;&#10;[C]&#10;꽃들도 구름도 바람도 넓은 바다도&#10;찬양하라 찬양하라 예수를"
+      ></textarea>
+    </div>
+  </div>
+
+  <div class="toast" id="toastMsg"></div>
+
+  <script>
+    const STORAGE_KEY = 'logos_conti_draft_v1';
+    const STORAGE_TIME_KEY = 'logos_conti_draft_time';
+
+    const editor = document.getElementById('editor');
+    const gutter = document.getElementById('gutter');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const statsInfo = document.getElementById('statsInfo');
+    const btnRestore = document.getElementById('btnRestore');
+    const btnManualSave = document.getElementById('btnManualSave');
+    const restoreBanner = document.getElementById('restoreBanner');
+    const restoreBannerText = document.getElementById('restoreBannerText');
+    const btnBannerRestore = document.getElementById('btnBannerRestore');
+    const btnBannerClose = document.getElementById('btnBannerClose');
+    const toastMsg = document.getElementById('toastMsg');
+
+    let debounceTimer = null;
+    let typingTimer = null;
+    let isUserTyping = false;
+    let lastSentValue = null;
+    let toastTimeout = null;
+
+    function showToast(msg, duration = 2500) {
+      toastMsg.innerText = msg;
+      toastMsg.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toastMsg.classList.remove('show');
+      }, duration);
+    }
+
+    function sendToStreamlit(type, data) {
+      window.parent.postMessage(Object.assign({
+        isStreamlitMessage: true,
+        type: type
+      }, data), "*");
+    }
+
+    function saveToLocalStorage(val) {
+      try {
+        if (typeof val === 'string' && val.trim().length > 0) {
+          localStorage.setItem(STORAGE_KEY, val);
+          const nowStr = new Date().toLocaleString('ko-KR', { 
+            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
+          });
+          localStorage.setItem(STORAGE_TIME_KEY, nowStr);
+        }
+      } catch (e) {
+        console.warn("[conti_editor] localStorage save failed:", e);
+      }
+    }
+
+    function getLocalStorageDraft() {
+      try {
+        const text = localStorage.getItem(STORAGE_KEY);
+        const time = localStorage.getItem(STORAGE_TIME_KEY);
+        if (text && text.trim().length > 0) {
+          return { text, time: time || '이전 세션' };
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function updateGutterAndStats() {
+      const text = editor.value || '';
+      const lines = text.replace(/\r/g, '').split('\n');
+      let html = '';
+      let songCount = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        const lineNum = i + 1;
+        if (line.startsWith('## ') || line.startsWith('##')) {
+          songCount++;
+          html += `<div class="gutter-line song-start">${lineNum}</div>`;
+        } else if (line.length === 0) {
+          html += `<div class="gutter-line blank-line">${lineNum}</div>`;
+        } else {
+          html += `<div class="gutter-line">${lineNum}</div>`;
+        }
+      }
+      gutter.innerHTML = html;
+      gutter.scrollTop = editor.scrollTop;
+
+      const songLabel = songCount > 0 ? `${songCount}곡 · ` : '';
+      statsInfo.innerText = `${songLabel}${lines.length}줄`;
+    }
+
+    function notifyValueChange(force = false) {
+      if (!force && lastSentValue === editor.value) return;
+      lastSentValue = editor.value;
+      saveToLocalStorage(editor.value);
+      sendToStreamlit("streamlit:setComponentValue", { value: editor.value });
+
+      statusDot.classList.remove('saving');
+      const timeStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      statusText.innerText = `실시간 자동 저장됨 (${timeStr})`;
+    }
+
+    // Input Event: typing triggers localStorage save + debounced Streamlit sync
+    editor.addEventListener('input', () => {
+      isUserTyping = true;
+      statusDot.classList.add('saving');
+      statusText.innerText = "저장 중...";
+
+      // Instant local persistence
+      saveToLocalStorage(editor.value);
+
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => { 
+        isUserTyping = false; 
+      }, 800);
+
+      updateGutterAndStats();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        notifyValueChange();
+      }, 250);
+    });
+
+    editor.addEventListener('blur', () => {
+      clearTimeout(debounceTimer);
+      isUserTyping = false;
+      notifyValueChange();
+    });
+
+    editor.addEventListener('scroll', () => {
+      gutter.scrollTop = editor.scrollTop;
+    });
+
+    gutter.addEventListener('click', () => {
+      editor.focus();
+    });
+
+    // Manual Save Button
+    btnManualSave.addEventListener('click', () => {
+      notifyValueChange(true);
+      showToast("💾 브라우저와 서버에 안전하게 저장되었습니다.");
+    });
+
+    // Restore Draft Handler
+    function performRestore() {
+      const draft = getLocalStorageDraft();
+      if (draft && draft.text) {
+        editor.value = draft.text;
+        lastSentValue = draft.text;
+        updateGutterAndStats();
+        notifyValueChange(true);
+        restoreBanner.classList.remove('show');
+        showToast(`📥 [${draft.time}] 임시저장본이 완벽하게 복구되었습니다!`);
+      } else {
+        showToast("ℹ️ 저장된 이전 임시저장본이 없습니다.");
+      }
+    }
+
+    btnRestore.addEventListener('click', performRestore);
+    btnBannerRestore.addEventListener('click', performRestore);
+    btnBannerClose.addEventListener('click', () => {
+      restoreBanner.classList.remove('show');
+    });
+
+    // Check if recovery banner should be shown on mount
+    function checkDraftRecovery(serverValue) {
+      const draft = getLocalStorageDraft();
+      if (!draft) return;
+
+      const serverEmptyOrShort = !serverValue || serverValue.trim().length < 150;
+      const draftHasContent = draft.text.trim().length >= 150;
+
+      // If server has basic skeleton but local draft has full songs:
+      if (serverEmptyOrShort && draftHasContent && draft.text !== serverValue) {
+        restoreBannerText.innerHTML = `💡 <strong>이전 작업본 복구 가능:</strong> ${draft.time}에 작성 중이던 콘티(${draft.text.length}자)가 보존되어 있습니다.`;
+        restoreBanner.classList.add('show');
+      }
+    }
+
+    // Streamlit Message Listener
+    window.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "streamlit:render") {
+        if (readyInterval) clearInterval(readyInterval);
+        const args = event.data.args;
+        if (args && args.value !== undefined) {
+          // 1. Initial mount
+          if (!window.__initialized) {
+            window.__initialized = true;
+            lastSentValue = args.value;
+            editor.value = args.value;
+            updateGutterAndStats();
+            checkDraftRecovery(args.value);
+          }
+          // 2. Ignore echo of our own edits
+          else if (args.value === lastSentValue || args.value === editor.value) {
+            // Already in sync
+          }
+          // 3. User actively typing: never overwrite!
+          else if (isUserTyping || document.activeElement === editor) {
+            // Protect user's live keystrokes
+          }
+          // 4. External change (e.g. preset switched or uploaded file)
+          else {
+            lastSentValue = args.value;
+            const selStart = editor.selectionStart;
+            const selEnd = editor.selectionEnd;
+            editor.value = args.value;
+            if (selStart !== undefined && selEnd !== undefined && selEnd <= editor.value.length) {
+              editor.setSelectionRange(selStart, selEnd);
+            }
+            updateGutterAndStats();
+          }
+        }
+        if (args && args.height) {
+          sendToStreamlit("streamlit:setFrameHeight", { height: args.height });
+        }
+      }
+    });
+
+    // Component Ready Heartbeat
+    let readyAttempts = 0;
+    const readyInterval = setInterval(() => {
+      if (window.__initialized || readyAttempts >= 30) {
+        clearInterval(readyInterval);
+      } else {
+        sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+        sendToStreamlit("streamlit:setFrameHeight", { height: 580 });
+        readyAttempts++;
+      }
+    }, 100);
+
+    sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+    sendToStreamlit("streamlit:setFrameHeight", { height: 580 });
+
+    updateGutterAndStats();
+    window.addEventListener("DOMContentLoaded", updateGutterAndStats);
+    window.addEventListener("load", updateGutterAndStats);
+  </script>
+</body>
+</html>

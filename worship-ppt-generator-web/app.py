@@ -55,6 +55,7 @@ def open_folder_in_explorer(file_or_dir_path):
 
 
 from core.slide_editor_component import render_slide_ide_editor
+from core.conti_editor_component import render_conti_editor
 from core.text_engine import (
     parse_user_conti, 
     generate_plan_text_from_conti, 
@@ -375,12 +376,7 @@ if "last_cloud_sync_time" not in st.session_state:
     st.session_state.last_cloud_sync_time = time.time()
 else:
     if time.time() - st.session_state.last_cloud_sync_time > 1800:
-        try:
-            check_and_process_channel_updates()
-            fetch_remote_catalog()
-            st.session_state.last_cloud_sync_time = time.time()
-        except Exception:
-            pass
+        st.session_state.last_cloud_sync_time = time.time()
 
 cloud_badge = "🟢 클라우드 연결됨" if st.session_state.get("cloud_connected", True) else "⚪ 오프라인 모드"
 
@@ -694,21 +690,13 @@ if active_tab == "1. 콘티 작성":
     col_edit, col_guide = st.columns([7.2, 4.8])
     
     with col_edit:
-        def on_conti_editor_change():
-            current_key = f"conti_editor_v{st.session_state.get('conti_version', 0)}"
-            if current_key in st.session_state:
-                st.session_state.conti_text = st.session_state[current_key]
-
-        user_conti = st.text_area(
-            "콘티 본문",
+        conti_user_input = render_conti_editor(
             value=st.session_state.get("conti_text", ""),
             height=540,
-            key=f"conti_editor_v{st.session_state.get('conti_version', 0)}",
-            on_change=on_conti_editor_change,
-            placeholder="# 2026.09.13 LOGOS 청년 모임\n기도: ㅇㅇㅇ 청년\n\n## 1. \n루틴: \n\n[V]\n\n[P]\n\n[C]\n\n## 2. \n루틴: \n\n[V]\n\n[P]\n\n[C]",
-            label_visibility="collapsed"
+            key=f"conti_editor_v{st.session_state.get('conti_version', 0)}"
         )
-        st.session_state.conti_text = user_conti
+        if conti_user_input is not None and conti_user_input != st.session_state.get("conti_text", ""):
+            st.session_state.conti_text = conti_user_input
 
         # 슬라이드 생성 버튼 동적 레이블 생성
         if template_mode == "교회 표준 양식 선택":
