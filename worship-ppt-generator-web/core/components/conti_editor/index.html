@@ -153,6 +153,64 @@
     color: #ffffff;
   }
 
+  /* Routine Skeleton Banner */
+  .routine-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, #064e3b 0%, #065f46 100%);
+    border-bottom: 1px solid #059669;
+    color: #ecfdf5;
+    padding: 6px 14px;
+    font-size: 12px;
+    animation: fadeIn 0.2s ease;
+  }
+  .routine-banner.warning {
+    background: linear-gradient(90deg, #78350f 0%, #92400e 100%);
+    border-bottom: 1px solid #d97706;
+    color: #fef3c7;
+  }
+  .routine-banner.show {
+    display: flex;
+  }
+  .routine-banner-btn {
+    background: #059669;
+    border: 1px solid #34d399;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 8px;
+    font-size: 11.5px;
+    transition: all 0.15s ease;
+  }
+  .routine-banner-btn:hover {
+    background: #047857;
+  }
+  .routine-banner.warning .routine-banner-btn {
+    background: #d97706;
+    border-color: #fcd34d;
+  }
+  .routine-banner.warning .routine-banner-btn:hover {
+    background: #b45309;
+  }
+  .routine-banner-close {
+    background: transparent;
+    border: none;
+    color: #a7f3d0;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 8px;
+    padding: 0 4px;
+  }
+  .routine-banner.warning .routine-banner-close {
+    color: #fde68a;
+  }
+  .routine-banner-close:hover {
+    color: #ffffff;
+  }
+
   /* Main Editor Area */
   .editor-body {
     display: flex;
@@ -283,6 +341,15 @@
       </div>
     </div>
 
+    <!-- Routine Skeleton Banner -->
+    <div class="routine-banner" id="routineBanner">
+      <div id="routineBannerText">💡 루틴을 바탕으로 파트 양식을 자동 생성할 수 있습니다.</div>
+      <div>
+        <button class="routine-banner-btn" id="btnRoutineGenerate">생성</button>
+        <button class="routine-banner-close" id="btnRoutineClose">✕</button>
+      </div>
+    </div>
+
     <!-- Main Editor Body -->
     <div class="editor-body">
       <div class="gutter" id="gutter"></div>
@@ -313,6 +380,14 @@
     const btnBannerRestore = document.getElementById('btnBannerRestore');
     const btnBannerClose = document.getElementById('btnBannerClose');
     const toastMsg = document.getElementById('toastMsg');
+
+    const routineBanner = document.getElementById('routineBanner');
+    const routineBannerText = document.getElementById('routineBannerText');
+    const btnRoutineGenerate = document.getElementById('btnRoutineGenerate');
+    const btnRoutineClose = document.getElementById('btnRoutineClose');
+
+    const dismissedRoutines = new Set();
+    let currentTargetSong = null;
 
     let debounceTimer = null;
     let typingTimer = null;
@@ -412,6 +487,7 @@
       }, 800);
 
       updateGutterAndStats();
+      checkRoutineSkeletonPrompt();
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         notifyValueChange();
@@ -426,6 +502,16 @@
 
     editor.addEventListener('scroll', () => {
       gutter.scrollTop = editor.scrollTop;
+    });
+
+    editor.addEventListener('click', () => {
+      checkRoutineSkeletonPrompt();
+    });
+
+    editor.addEventListener('keyup', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(e.key)) {
+        checkRoutineSkeletonPrompt();
+      }
     });
 
     gutter.addEventListener('click', () => {
@@ -459,6 +545,197 @@
       restoreBanner.classList.remove('show');
     });
 
+    // =========================================================================
+    // Smart Routine-based Part Skeleton Generator
+    // =========================================================================
+    function extractPartsFromRoutine(routineStr) {
+      if (!routineStr) return [];
+      const rawTokens = routineStr.split(/[\-,]/);
+      const parts = [];
+      const seen = new Set();
+
+      for (let raw of rawTokens) {
+        let t = raw.trim().replace(/’/g, "'").replace(/`/g, "'");
+        if (!t) continue;
+
+        // Skip numeric or timing tokens like (1), (4), (1/keyup), (keyup)
+        if (/^\(?\s*\d+\s*\)?$/.test(t)) continue;
+        if (/keyup|key-up|키업/i.test(t)) continue;
+
+        // Skip Intro, Outro, Interlude, Prayer
+        if (/^intro/i.test(t)) continue;
+        if (/^outro|^o\(\d+\)|^o\d+/i.test(t)) continue;
+        if (/^interlude|^int\b|^i\(\d+\)|^i\d+$/i.test(t)) continue;
+        if (/^prayer|^기도/i.test(t)) continue;
+
+        // Strip repeat counts e.g. V x2, V(2), V*2, Tag x2
+        let cleanPart = t.replace(/\s*[xX*]\s*\d+$/, '').replace(/\(\d+\)$/, '').trim();
+        if (!cleanPart) continue;
+        if (/^intro|^outro|^interlude|^prayer|^i$/i.test(cleanPart)) continue;
+        if (/^\d+$/.test(cleanPart)) continue;
+
+        const upperKey = cleanPart.toUpperCase();
+        if (!seen.has(upperKey)) {
+          seen.add(upperKey);
+          parts.push(cleanPart);
+        }
+      }
+      return parts;
+    }
+
+    function parseSongsFromText(text) {
+      const lines = text.split('\n');
+      const songs = [];
+      let currentSong = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith('##')) {
+          if (currentSong) {
+            currentSong.endLine = i - 1;
+            songs.push(currentSong);
+          }
+          const cleanTitle = trimmed.replace(/^#+\s*/, '');
+          currentSong = {
+            title: cleanTitle,
+            startLine: i,
+            endLine: lines.length - 1,
+            routine: '',
+            routineLineIndex: -1,
+            hasNonPartText: false,
+            declaredParts: []
+          };
+          continue;
+        }
+
+        if (currentSong) {
+          if (/^루틴\s*:\s*/.test(trimmed)) {
+            currentSong.routine = trimmed.replace(/^루틴\s*:\s*/, '').trim();
+            currentSong.routineLineIndex = i;
+          } else if (currentSong.routineLineIndex !== -1) {
+            const partMatch = trimmed.match(/^\[([A-Za-z0-9가-힣'’`]+)\]$/);
+            if (partMatch) {
+              currentSong.declaredParts.push(partMatch[1].toUpperCase());
+            } else if (trimmed.length > 0 && !trimmed.startsWith('#')) {
+              currentSong.hasNonPartText = true;
+            }
+          }
+        }
+      }
+
+      if (currentSong) {
+        currentSong.endLine = lines.length - 1;
+        songs.push(currentSong);
+      }
+
+      return songs;
+    }
+
+    function checkRoutineSkeletonPrompt() {
+      if (restoreBanner && restoreBanner.classList.contains('show')) {
+        if (routineBanner) routineBanner.classList.remove('show');
+        return;
+      }
+
+      const text = editor.value || '';
+      if (!text.trim()) {
+        if (routineBanner) routineBanner.classList.remove('show');
+        currentTargetSong = null;
+        return;
+      }
+
+      const songs = parseSongsFromText(text);
+      if (songs.length === 0) {
+        if (routineBanner) routineBanner.classList.remove('show');
+        currentTargetSong = null;
+        return;
+      }
+
+      const selStart = editor.selectionStart || 0;
+      const linesUpToCursor = text.substring(0, selStart).split('\n');
+      const cursorLine = linesUpToCursor.length - 1;
+
+      let activeCandidate = null;
+
+      for (let s of songs) {
+        if (!s.routine) continue;
+        const routineKey = `${s.title}::${s.routine}`;
+        if (dismissedRoutines.has(routineKey)) continue;
+
+        const parts = extractPartsFromRoutine(s.routine);
+        if (parts.length === 0) continue;
+
+        const allDeclared = parts.every(p => s.declaredParts.includes(p.toUpperCase()));
+        if (allDeclared) continue;
+
+        s.extractedParts = parts;
+
+        if (cursorLine >= s.startLine && cursorLine <= s.endLine) {
+          activeCandidate = s;
+          break;
+        } else if (!activeCandidate) {
+          activeCandidate = s;
+        }
+      }
+
+      if (activeCandidate && routineBanner && routineBannerText) {
+        currentTargetSong = activeCandidate;
+        if (activeCandidate.hasNonPartText) {
+          routineBanner.classList.add('warning');
+          routineBannerText.innerHTML = `⚠️ <strong>[${activeCandidate.title}]</strong>의 파트 양식을 생성하시겠습니까? 기존 작업 내용이 초기화됩니다.`;
+        } else {
+          routineBanner.classList.remove('warning');
+          routineBannerText.innerHTML = `💡 <strong>[${activeCandidate.title}]</strong>의 루틴을 바탕으로 파트 양식을 자동 생성할 수 있습니다.`;
+        }
+        routineBanner.classList.add('show');
+      } else {
+        if (routineBanner) routineBanner.classList.remove('show');
+        currentTargetSong = null;
+      }
+    }
+
+    if (btnRoutineGenerate) {
+      btnRoutineGenerate.addEventListener('click', () => {
+        if (!currentTargetSong || !currentTargetSong.extractedParts) return;
+
+        const s = currentTargetSong;
+        const text = editor.value || '';
+        const lines = text.split('\n');
+
+        const skeletonText = s.extractedParts.map(p => `[${p}]\n\n`).join('\n').trim();
+
+        const headLines = lines.slice(0, s.routineLineIndex + 1);
+        const tailLines = lines.slice(s.endLine + 1);
+
+        const newSongBody = ['', ...skeletonText.split('\n'), ''];
+        const newLines = [...headLines, ...newSongBody, ...tailLines];
+        const newText = newLines.join('\n');
+
+        editor.value = newText;
+        lastSentValue = newText;
+        updateGutterAndStats();
+        notifyValueChange(true);
+
+        if (routineBanner) routineBanner.classList.remove('show');
+        dismissedRoutines.add(`${s.title}::${s.routine}`);
+        currentTargetSong = null;
+
+        showToast(`✨ [${s.title}] 파트 양식이 생성되었습니다!`);
+      });
+    }
+
+    if (btnRoutineClose) {
+      btnRoutineClose.addEventListener('click', () => {
+        if (currentTargetSong) {
+          dismissedRoutines.add(`${currentTargetSong.title}::${currentTargetSong.routine}`);
+        }
+        if (routineBanner) routineBanner.classList.remove('show');
+        currentTargetSong = null;
+      });
+    }
+
     // Check if recovery banner should be shown on mount
     function checkDraftRecovery(serverValue) {
       const draft = getLocalStorageDraft();
@@ -487,6 +764,7 @@
             editor.value = args.value;
             updateGutterAndStats();
             checkDraftRecovery(args.value);
+            checkRoutineSkeletonPrompt();
           }
           // 2. Ignore echo of our own edits
           else if (args.value === lastSentValue || args.value === editor.value) {
@@ -506,6 +784,7 @@
               editor.setSelectionRange(selStart, selEnd);
             }
             updateGutterAndStats();
+            checkRoutineSkeletonPrompt();
           }
         }
         if (args && args.height) {
