@@ -123,6 +123,7 @@
     padding: 6px 14px;
     font-size: 12px;
     animation: fadeIn 0.2s ease;
+    flex-shrink: 0;
   }
   .restore-banner.show {
     display: flex;
@@ -164,6 +165,7 @@
     padding: 6px 14px;
     font-size: 12px;
     animation: fadeIn 0.2s ease;
+    flex-shrink: 0;
   }
   .routine-banner.warning {
     background: linear-gradient(90deg, #78350f 0%, #92400e 100%);
@@ -217,7 +219,7 @@
     flex-direction: row;
     flex: 1;
     width: 100%;
-    height: calc(100% - 38px);
+    min-height: 0;
     overflow: hidden;
   }
   .gutter {
@@ -332,21 +334,21 @@
       </div>
     </div>
 
+    <!-- Routine Skeleton Banner (최신 알림이 최상단에 노출되도록 배치) -->
+    <div class="routine-banner" id="routineBanner">
+      <div id="routineBannerText">💡 루틴을 바탕으로 파트 양식을 자동 생성할 수 있습니다.</div>
+      <div>
+        <button class="routine-banner-btn" id="btnRoutineGenerate">생성</button>
+        <button class="routine-banner-close" id="btnRoutineClose">✕</button>
+      </div>
+    </div>
+
     <!-- Recovery Notice Banner -->
     <div class="restore-banner" id="restoreBanner">
       <div id="restoreBannerText">💡 이전에 브라우저에 임시 저장된 콘티가 있습니다.</div>
       <div>
         <button class="restore-banner-btn" id="btnBannerRestore">지금 복구하기</button>
         <button class="restore-banner-close" id="btnBannerClose">✕</button>
-      </div>
-    </div>
-
-    <!-- Routine Skeleton Banner -->
-    <div class="routine-banner" id="routineBanner">
-      <div id="routineBannerText">💡 루틴을 바탕으로 파트 양식을 자동 생성할 수 있습니다.</div>
-      <div>
-        <button class="routine-banner-btn" id="btnRoutineGenerate">생성</button>
-        <button class="routine-banner-close" id="btnRoutineClose">✕</button>
       </div>
     </div>
 
@@ -514,6 +516,10 @@
       }
     });
 
+    editor.addEventListener('paste', () => {
+      setTimeout(checkRoutineSkeletonPrompt, 100);
+    });
+
     gutter.addEventListener('click', () => {
       editor.focus();
     });
@@ -592,7 +598,10 @@
         const line = lines[i];
         const trimmed = line.trim();
 
-        if (trimmed.startsWith('##')) {
+        const isH2 = trimmed.startsWith('##');
+        const isSongNum = /^(?:#+\s*)?\d+\s*[\.\-\)]\s+[^\n]+/.test(trimmed) && !trimmed.startsWith('루틴') && !trimmed.startsWith('기도');
+
+        if (isH2 || isSongNum) {
           if (currentSong) {
             currentSong.endLine = i - 1;
             songs.push(currentSong);
@@ -633,32 +642,13 @@
       return songs;
     }
 
-    function checkRoutineSkeletonPrompt() {
-      if (restoreBanner && restoreBanner.classList.contains('show')) {
-        if (routineBanner) routineBanner.classList.remove('show');
-        return;
-      }
-
-      const text = editor.value || '';
-      if (!text.trim()) {
-        if (routineBanner) routineBanner.classList.remove('show');
-        currentTargetSong = null;
-        return;
-      }
-
-      const songs = parseSongsFromText(text);
-      if (songs.length === 0) {
-        if (routineBanner) routineBanner.classList.remove('show');
-        currentTargetSong = null;
-        return;
-      }
-
+    function findCandidateSong(songs, text) {
+      if (!songs || songs.length === 0) return null;
       const selStart = editor.selectionStart || 0;
       const linesUpToCursor = text.substring(0, selStart).split('\n');
       const cursorLine = linesUpToCursor.length - 1;
 
-      let activeCandidate = null;
-
+      let candidate = null;
       for (let s of songs) {
         if (!s.routine) continue;
         const routineKey = `${s.title}::${s.routine}`;
@@ -673,21 +663,39 @@
         s.extractedParts = parts;
 
         if (cursorLine >= s.startLine && cursorLine <= s.endLine) {
-          activeCandidate = s;
-          break;
-        } else if (!activeCandidate) {
-          activeCandidate = s;
+          return s;
+        } else if (!candidate) {
+          candidate = s;
         }
       }
+      return candidate;
+    }
 
-      if (activeCandidate && routineBanner && routineBannerText) {
-        currentTargetSong = activeCandidate;
-        if (activeCandidate.hasNonPartText) {
+    function checkRoutineSkeletonPrompt() {
+      const text = editor.value || '';
+      if (!text.trim()) {
+        if (routineBanner) routineBanner.classList.remove('show');
+        currentTargetSong = null;
+        return;
+      }
+
+      const songs = parseSongsFromText(text);
+      if (songs.length === 0) {
+        if (routineBanner) routineBanner.classList.remove('show');
+        currentTargetSong = null;
+        return;
+      }
+
+      const candidate = findCandidateSong(songs, text);
+
+      if (candidate && routineBanner && routineBannerText) {
+        currentTargetSong = candidate;
+        if (candidate.hasNonPartText) {
           routineBanner.classList.add('warning');
-          routineBannerText.innerHTML = `⚠️ <strong>[${activeCandidate.title}]</strong>의 파트 양식을 생성하시겠습니까? 기존 작업 내용이 초기화됩니다.`;
+          routineBannerText.innerHTML = `⚠️ <strong>[${candidate.title}]</strong>의 파트 양식을 생성하시겠습니까? 기존 작업 내용이 초기화됩니다.`;
         } else {
           routineBanner.classList.remove('warning');
-          routineBannerText.innerHTML = `💡 <strong>[${activeCandidate.title}]</strong>의 루틴을 바탕으로 파트 양식을 자동 생성할 수 있습니다.`;
+          routineBannerText.innerHTML = `💡 <strong>[${candidate.title}]</strong>의 루틴을 바탕으로 파트 양식을 자동 생성할 수 있습니다.`;
         }
         routineBanner.classList.add('show');
       } else {
@@ -696,33 +704,75 @@
       }
     }
 
-    if (btnRoutineGenerate) {
-      btnRoutineGenerate.addEventListener('click', () => {
-        if (!currentTargetSong || !currentTargetSong.extractedParts) return;
+    let isGeneratingSkeleton = false;
 
-        const s = currentTargetSong;
+    if (btnRoutineGenerate) {
+      btnRoutineGenerate.addEventListener('click', (e) => {
+        if (e && typeof e.preventDefault === 'function') {
+          e.preventDefault();
+        }
+        if (e && typeof e.stopPropagation === 'function') {
+          e.stopPropagation();
+        }
+
         const text = editor.value || '';
+        const songs = parseSongsFromText(text);
+        let s = currentTargetSong;
+        if (!s || !s.extractedParts) {
+          s = findCandidateSong(songs, text);
+        }
+
+        if (!s || !s.extractedParts || s.extractedParts.length === 0) {
+          showToast("ℹ️ 생성할 루틴 정보를 찾지 못했습니다.");
+          return;
+        }
+
+        // Re-locate current song in fresh lines in case lines changed
+        const freshSongs = parseSongsFromText(text);
+        const freshSong = freshSongs.find(fs => fs.title === s.title && fs.routine === s.routine) || s;
         const lines = text.split('\n');
 
-        const skeletonText = s.extractedParts.map(p => `[${p}]\n\n`).join('\n').trim();
+        if (freshSong.routineLineIndex === -1) {
+          showToast("⚠️ 루틴 위치를 확인하지 못했습니다.");
+          return;
+        }
 
-        const headLines = lines.slice(0, s.routineLineIndex + 1);
-        const tailLines = lines.slice(s.endLine + 1);
+        const partsToUse = (freshSong.extractedParts && freshSong.extractedParts.length > 0)
+          ? freshSong.extractedParts
+          : ((s.extractedParts && s.extractedParts.length > 0) ? s.extractedParts : extractPartsFromRoutine(freshSong.routine));
 
-        const newSongBody = ['', ...skeletonText.split('\n'), ''];
+        if (!partsToUse || partsToUse.length === 0) {
+          showToast("ℹ️ 생성할 루틴 정보를 찾지 못했습니다.");
+          return;
+        }
+
+        const skeletonBlocks = partsToUse.map(p => `[${p}]\n\n`).join('\n').trim();
+
+        const headLines = lines.slice(0, freshSong.routineLineIndex + 1);
+        const tailLines = lines.slice(freshSong.endLine + 1);
+
+        const newSongBody = ['', ...skeletonBlocks.split('\n'), ''];
         const newLines = [...headLines, ...newSongBody, ...tailLines];
         const newText = newLines.join('\n');
 
+        // Lock to prevent Streamlit render echo from overwriting this generated text
+        isGeneratingSkeleton = true;
+        setTimeout(() => {
+          isGeneratingSkeleton = false;
+        }, 2000);
+
         editor.value = newText;
         lastSentValue = newText;
+        saveToLocalStorage(newText);
         updateGutterAndStats();
         notifyValueChange(true);
 
         if (routineBanner) routineBanner.classList.remove('show');
-        dismissedRoutines.add(`${s.title}::${s.routine}`);
+        dismissedRoutines.add(`${freshSong.title}::${freshSong.routine}`);
         currentTargetSong = null;
 
-        showToast(`✨ [${s.title}] 파트 양식이 생성되었습니다!`);
+        showToast(`✨ [${freshSong.title}] 파트 양식이 생성되었습니다!`);
+        editor.focus();
       });
     }
 
@@ -770,11 +820,15 @@
           else if (args.value === lastSentValue || args.value === editor.value) {
             // Already in sync
           }
-          // 3. User actively typing: never overwrite!
+          // 3. Just generated routine skeleton: lock against stale renders
+          else if (isGeneratingSkeleton) {
+            // Block stale render from overwriting editor
+          }
+          // 4. User actively typing: never overwrite!
           else if (isUserTyping || document.activeElement === editor) {
             // Protect user's live keystrokes
           }
-          // 4. External change (e.g. preset switched or uploaded file)
+          // 5. External change (e.g. preset switched or uploaded file)
           else {
             lastSentValue = args.value;
             const selStart = editor.selectionStart;
